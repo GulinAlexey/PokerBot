@@ -1,0 +1,1 @@
+﻿C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Application Type\Linux\1.0\Linux.targets(160,5): error : Нет удаленных компьютеров, настроенных для удаленной сборки. Настройте компьютер в разделе "Инструменты" > "Параметры" > "Кроссплатформенные" > "Диспетчер подключений".
