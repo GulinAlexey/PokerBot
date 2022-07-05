@@ -1,5 +1,6 @@
 ﻿#include <cstdio>
 #include <iostream>
+#include "tgbot-cpp/include/tgbot/Bot.h"
 
 using namespace std;
 
