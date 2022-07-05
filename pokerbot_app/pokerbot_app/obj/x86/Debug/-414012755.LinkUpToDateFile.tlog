@@ -1,0 +1,1 @@
+g++ -o "/home/alexey/projects/pokerbot_app/bin/x86/Debug/pokerbot_app.out" -Wl,--no-undefined -Wl,-z,relro -Wl,-z,noexecstack /home/alexey/projects/pokerbot_app/obj/x86/Debug/main.o

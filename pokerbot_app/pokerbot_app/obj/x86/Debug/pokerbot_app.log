@@ -1,0 +1,10 @@
+﻿  Проверка исходных файлов
+  Удаленное копирование исходных файлов в "192.168.242.156"
+  Проверка архитектуры
+  Проверка архитектуры
+C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Microsoft\VC\v160\Application Type\Linux\1.0\Linux.targets(202,5): warning : Текущая архитектура проекта "x86" не совместима с архитектурой удаленной системы "x64" ("x64"). Переключите архитектуру проекта на "x64" в Configuration Manager. Если используется перекрестная компиляция, это предупреждение можно игнорировать.
+  Запуск удаленной сборки.
+  Компиляция исходных файлов:
+  main.cpp
+  Связывание объектов
+  pokerbot_app.vcxproj -> C:\Users\Алексей\source\repos\PokerBot\pokerbot_app\pokerbot_app\bin\x86\Debug\pokerbot_app.out
