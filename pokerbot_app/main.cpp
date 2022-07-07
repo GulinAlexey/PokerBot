@@ -50,7 +50,6 @@ int main()
         TgBot::TgLongPoll longPoll(bot);
         while (true) //цикл длинных опросов для обработки сообщений пользователей
         {
-            outlog << "Длинный опрос запущен" << endl;
             longPoll.start();
         }
     }
