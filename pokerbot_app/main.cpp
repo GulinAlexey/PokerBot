@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
+#include <ctime>   
 #include <tgbot/tgbot.h>
 
 #define PATH_OF_TOKEN "data/token.dat" //путь к файлу, в котором хранится токен телеграм-бота
@@ -10,6 +12,14 @@
 using namespace std;
 
 ofstream outlog(PATH_OF_LOG); //поток вывода лога работы в файл
+
+string current_time() //получить строку с текущим временем (для лога)
+{
+    auto time_now = chrono::system_clock::now();
+    time_t time_t_now = chrono::system_clock::to_time_t(time_now);
+    string string_time = ctime(&time_t_now);
+    return (string_time).erase(string_time.length()-1,1) + string(": ");
+}
 
 int main()
 {
@@ -20,8 +30,8 @@ int main()
     }
     catch (ifstream::failure& e)
     {
-        cout << "Отсутствует файл \"data/token.dat\" с токеном бота." << endl;
-        outlog << "Отсутствует файл \"data/token.dat\" с токеном бота." << endl;
+        cout << current_time() << "Отсутствует файл \"data/token.dat\" с токеном бота." << endl;
+        outlog << current_time() << "Отсутствует файл \"data/token.dat\" с токеном бота." << endl;
         return 0;
     }
 
@@ -29,11 +39,11 @@ int main()
 
     bot.getEvents().onCommand("start", [&bot](TgBot::Message::Ptr message) //при получении команды start
         {
-        bot.getApi().sendMessage(message->chat->id, "Hi!");
+        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер.");
         });
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) //при получении любого сообщения
         {
-        outlog << "Пользователь написал " << message->text.c_str() << endl;
+        outlog << current_time() << "Пользователь написал " << message->text.c_str() << endl;
         if (StringTools::startsWith(message->text, "/start")) 
         {
             return;
@@ -42,10 +52,11 @@ int main()
         });
     try 
     {
-        cout << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
-        cout << "Бот запущен" << endl;
-        outlog << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
-        outlog << "Бот запущен" << endl;
+        cout << current_time() << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
+        cout << current_time() << "Бот запущен" << endl;
+
+        outlog << current_time() << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
+        outlog << current_time() << "Бот запущен" << endl;
 
         TgBot::TgLongPoll longPoll(bot);
         while (true) //цикл длинных опросов для обработки сообщений пользователей
@@ -55,8 +66,8 @@ int main()
     }
     catch (TgBot::TgException& e) //при возникновении ошибки
     {
-        cout << "Бот остановлен. Ошибка: " << e.what() << endl;
-        outlog << "Бот остановлен. Ошибка: "<< e.what() << endl;
+        cout << current_time() << "Бот остановлен. Ошибка: " << e.what() << endl;
+        outlog << current_time() << "Бот остановлен. Ошибка: "<< e.what() << endl;
     }
     return 0;
 }
