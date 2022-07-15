@@ -5,13 +5,19 @@
 #include <chrono>
 #include <ctime>   
 #include <tgbot/tgbot.h>
+#include "Game_info.h"
+#include "Game_info.cpp"
+
+#define SYSTEM_CREATE_FOLDER "mkdir -p " //системная команда для создания директории
+#define SYSTEM_FUNC(command, arg) (command arg) //объединение define строк для вызова системной команды с аргументами
 
 #define PATH_OF_TOKEN "data/token.dat" //путь к файлу, в котором хранится токен телеграм-бота
-#define PATH_OF_LOG "log.txt" //путь к файлу для записи лога
+#define PATH_OF_LOG "log.txt" //путь к файлу для записи в лог
 
 using namespace std;
 
-ofstream outlog(PATH_OF_LOG); //поток вывода лога работы в файл
+ofstream outlog(PATH_OF_LOG, ios::app); //поток вывода лога работы в конец файла лог
+Game_info current_game_info; //объект с информацией об игре текущего пользователя
 
 string current_time() //получить строку с текущим временем (для лога)
 {
@@ -23,7 +29,7 @@ string current_time() //получить строку с текущим врем
 
 int main()
 {
-    string bot_token; //токен бота
+    string bot_token; //токен бота 
     try
     {
         bot_token = FileTools::read(PATH_OF_TOKEN); //прочитать из файла
@@ -35,28 +41,34 @@ int main()
         return 0;
     }
 
+    system(SYSTEM_FUNC(SYSTEM_CREATE_FOLDER, FOLDER)); //создать директорию для сохранения профилей пользователей
     TgBot::Bot bot(bot_token); //объявление объекта телеграм-бота
 
     bot.getEvents().onCommand("start", [&bot](TgBot::Message::Ptr message) //при получении команды start
-        {
+    {
         bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер.");
-        });
+
+        current_game_info.init(message->chat->id, MODE_NEW_PROFILE);
+        
+        /////////////////
+    });
+    bot.getEvents().onCommand("newgame", [&bot](TgBot::Message::Ptr message) //при получении команды newgame
+    {
+        /////////////////
+    });
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) //при получении любого сообщения
-        {
-        outlog << current_time() << "Пользователь написал " << message->text.c_str() << endl;
+    {
+        outlog << current_time() << "В чате " << message->chat->id << " пользователь написал " << message->text.c_str() << endl;
         if (StringTools::startsWith(message->text, "/start")) 
         {
             return;
         }
         bot.getApi().sendMessage(message->chat->id, "Ваше сообщение: " + message->text);
-        });
+    });
     try 
     {
-        cout << current_time() << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
-        cout << current_time() << "Бот запущен" << endl;
-
-        outlog << current_time() << "Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
-        outlog << current_time() << "Бот запущен" << endl;
+        cout << current_time() << "Бот запущен. Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
+        outlog << current_time() << "Бот запущен. Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
 
         TgBot::TgLongPoll longPoll(bot);
         while (true) //цикл длинных опросов для обработки сообщений пользователей

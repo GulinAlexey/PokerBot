@@ -7,4 +7,5 @@ pokerbot_app/pokerbot_app.vcxproj
 pokerbot_app/pokerbot_app.vcxproj.user
 pokerbot_app.sln
 pokerbot_app/data
+pokerbot_app/profiles
 pokerbot_app/log.txt
