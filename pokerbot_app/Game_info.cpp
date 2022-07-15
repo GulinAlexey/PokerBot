@@ -21,11 +21,10 @@ void Game_info::init(int id_chat_input, int f_mode) //инициализация
 	}
 }
 
-void Game_info::read_from_file() //чтение значений из файла (должно быть известно значение id_chat)
+void Game_info::read_from_file() //чтение значений из файла (должно быть уже установлено значение id_chat)
 {
 	ifstream fin;
 	fin.open(FOLDER + to_string(id_chat) + TYPE_OF_PROFILE_FILE, ios::in); //открыть файл для чтения
-	fin >> id_chat;
 	fin >> f_game_stage;
 
 	fin.close(); //закрыть файл
@@ -39,4 +38,17 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	fout << f_game_stage << endl;
 
 	fout.close(); //закрыть файл
+}
+
+void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //начать новую игру
+{
+	f_game_stage = NEW_GAME_STARTED;
+
+	bot->getApi().sendMessage(message->chat->id, "Запущена новая игра.");
+
+
+
+
+
+	write_to_file(); //запись значений в файл
 }
