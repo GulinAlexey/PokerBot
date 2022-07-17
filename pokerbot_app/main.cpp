@@ -6,7 +6,9 @@
 #include <ctime>   
 #include <tgbot/tgbot.h>
 #include "Game_info.h"
+
 #include "Game_info.cpp"
+#include "Playing_card.cpp"
 
 #define SYSTEM_CREATE_FOLDER "mkdir -p " //системная команда для создания директории
 
@@ -46,24 +48,25 @@ int main()
     Game_info current_game_info; //объект с информацией об игре текущего пользователя
 
     bot.getEvents().onCommand("start", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды start
-        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров).\nЧтобы начать игру, отправьте /newgame.");
-        current_game_info.init(message->chat->id, MODE_NEW_PROFILE); //инициализация профиля текущей игры и его создание, запись в файл
+        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров)");
+        bot.getApi().sendMessage(message->chat->id, "Начать новую игру: /newgame\nСправка: /help");
+        current_game_info.init(message->chat->id, MODE_NEW_PROFILE, &bot, message); //инициализация профиля текущей игры и его создание, запись в файл
     });
     bot.getEvents().onCommand("newgame", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды newgame
-        current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE); //инициализация профиля текущей игры из файла
+        current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
         current_game_info.start_new_game(&bot, message); //начать новую игру
     });
     bot.getEvents().onCommand("help", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды newgame
-        bot.getApi().sendMessage(message->chat->id, "Чтобы начать игру, отправьте /newgame.");
+        bot.getApi().sendMessage(message->chat->id, "Чтобы начать игру, отправьте /newgame");
         });
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
         outlog << current_time() << "В чате " << message->chat->id << " пользователь написал: " << message->text.c_str() << endl;
     });
     bot.getEvents().onNonCommandMessage([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
-        bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода.");
+        bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода");
     });
     bot.getEvents().onUnknownCommand([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
-        bot.getApi().sendMessage(message->chat->id, "Данное сообщение является неизвестной командой. Проверьте правильность ввода.");
+        bot.getApi().sendMessage(message->chat->id, "Данное сообщение является неизвестной командой. Проверьте правильность ввода");
     });
     try 
     {

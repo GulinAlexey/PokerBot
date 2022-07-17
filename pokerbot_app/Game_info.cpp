@@ -5,11 +5,17 @@ Game_info::Game_info()
 	random_generator.seed(chrono::steady_clock::now().time_since_epoch().count()); //инициализация генератора случайных чисел
 }
 
-void Game_info::init(int id_chat_input, int f_mode) //инициализация на основе идентификатора чата
+void Game_info::init(int id_chat_input, int f_mode, TgBot::Bot* bot, TgBot::Message::Ptr message) //инициализация на основе идентификатора чата
 {
+	//очистить векторы с картами перед их заполнением
+	player_cards.clear();
+	opponent_cards.clear();
+	common_cards.clear();
+
 	switch (f_mode)
 	{
 	case MODE_NEW_PROFILE: //режим создания нового профиля игры и его запись в файл
+create_new_profile: //метка создания нового профиля (если не был найден существующий)
 		id_chat = id_chat_input;
 		f_game_stage = GAME_NOT_STARTED;
 		pot = 0;
@@ -24,15 +30,24 @@ void Game_info::init(int id_chat_input, int f_mode) //инициализация
 
 	case MODE_EXISTING_PROFILE: //режим чтения существующего профиля из файла
 		id_chat = id_chat_input;
-		read_from_file(); //чтение значений из файла
+		if(read_from_file()==false) //чтение значений из файла (с проверкой на его существование)
+		{
+			bot->getApi().sendMessage(message->chat->id, "Файл с вашим профилем не был найден на сервере бота.\nСоздан новый профиль");
+			goto create_new_profile; //перейти к созданию нового профиля, если не был найден файл с данными
+		}
 		break;
 	}
 }
 
-void Game_info::read_from_file() //чтение значений из файла (должно быть уже установлено значение id_chat)
+bool Game_info::read_from_file() //чтение значений из файла (должно быть уже установлено значение id_chat)
 {
 	ifstream fin;
 	fin.open(FOLDER + to_string(id_chat) + TYPE_OF_PROFILE_FILE, ios::in); //открыть файл для чтения
+	if (fin.is_open() == false) //если файл с данными пользователя отсутствует
+	{
+		return false;
+	}
+	fin >> id_chat;
 	fin >> f_game_stage;
 	fin >> pot;
 	fin >> player_bet;
@@ -75,6 +90,7 @@ void Game_info::read_from_file() //чтение значений из файла
 	}
 
 	fin.close(); //закрыть файл
+	return true;
 }
 
 void Game_info::write_to_file() //запись значений в файл (перезапись, если файл уже был создан)
@@ -115,12 +131,10 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 {
 	f_game_stage = PREFLOP;
 
-	bot->getApi().sendMessage(message->chat->id, "Запущена новая игра.");
-	bot->getApi().sendMessage(message->chat->id, "Первый раунд: Префлоп.");
+	bot->getApi().sendMessage(message->chat->id, "Запущена новая игра");
+	bot->getApi().sendMessage(message->chat->id, "Первый раунд: Префлоп");
 
-
-
-
+	
 	write_to_file(); //запись значений в файл
 }
 

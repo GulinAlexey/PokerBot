@@ -47,8 +47,8 @@ private:
 
 public:
 	Game_info();
-	void init(int id_chat_input, int f_mode); //инициализация на основе идентификатора чата
-	void read_from_file(); //чтение значений из файла (должно быть уже установлено значение id_chat)
+	void init(int id_chat_input, int f_mode, TgBot::Bot* bot, TgBot::Message::Ptr message); //инициализация на основе идентификатора чата
+	bool read_from_file(); //чтение значений из файла (должно быть уже установлено значение id_chat)
 	void write_to_file(); //запись значений в файл (перезапись, если файл уже был создан)
 	void start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message); //начать новую игру
 	Playing_card get_rand_card(); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
