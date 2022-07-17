@@ -18,6 +18,7 @@ void Game_info::init(int id_chat_input, int f_mode, TgBot::Bot* bot, TgBot::Mess
 create_new_profile: //метка создания нового профиля (если не был найден существующий)
 		id_chat = id_chat_input;
 		f_game_stage = GAME_NOT_STARTED;
+		is_player_should_bet_big_blind = 0;
 		pot = 0;
 		player_bet = 0;
 		opponent_bet = 0;
@@ -49,6 +50,7 @@ bool Game_info::read_from_file() //чтение значений из файла
 	}
 	fin >> id_chat;
 	fin >> f_game_stage;
+	fin >> is_player_should_bet_big_blind;
 	fin >> pot;
 	fin >> player_bet;
 	fin >> opponent_bet;
@@ -99,6 +101,7 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	fout.open(FOLDER + to_string(id_chat) + TYPE_OF_PROFILE_FILE, ios::out); //открыть файл для записи
 	fout << id_chat << endl;
 	fout << f_game_stage << endl;
+	fout << is_player_should_bet_big_blind << endl;
 	fout << pot << endl;
 	fout << player_bet << endl;
 	fout << opponent_bet << endl;
@@ -129,10 +132,35 @@ void Game_info::write_to_file() //запись значений в файл (п�
 
 void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //начать новую игру
 {
-	f_game_stage = PREFLOP;
+	f_game_stage = PREFLOP; //записать в переменную флага текущую стадию игры
+
+	//очистить векторы с картами
+	player_cards.clear();
+	opponent_cards.clear();
+	common_cards.clear();
+
+	//обнулить данные об игровой сессии перед её началом
+	is_player_should_bet_big_blind = 0;
+	pot = 0;
+	player_bet = 0;
+	opponent_bet = 0;
+	player_stack = DEFAULT_PLAYER_STACK;
+	opponent_stack = DEFAULT_OPPONENT_STACK;
+	big_blind = DEFAULT_BIG_BLIND;
 
 	bot->getApi().sendMessage(message->chat->id, "Запущена новая игра");
 	bot->getApi().sendMessage(message->chat->id, "Первый раунд: Префлоп");
+
+	uniform_int_distribution<int> f_big_blind_range(0, 1); //диапазон для случайной генерации флага большого блайнда
+	is_player_should_bet_big_blind = f_big_blind_range(random_generator);
+	if (is_player_should_bet_big_blind == 1) //игрок должен сделать большой блайнд
+	{
+
+	}
+	else //игрок должен выплатить малый блайнд
+	{
+
+	}
 
 	
 	write_to_file(); //запись значений в файл

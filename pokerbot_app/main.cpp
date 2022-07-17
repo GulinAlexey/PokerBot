@@ -53,7 +53,7 @@ int main()
         current_game_info.init(message->chat->id, MODE_NEW_PROFILE, &bot, message); //инициализация профиля текущей игры и его создание, запись в файл
     });
     bot.getEvents().onCommand("newgame", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды newgame
-        current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
+        current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры и его создание, запись в файл
         current_game_info.start_new_game(&bot, message); //начать новую игру
     });
     bot.getEvents().onCommand("help", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды newgame
