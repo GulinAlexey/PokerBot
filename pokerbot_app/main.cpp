@@ -63,10 +63,10 @@ int main()
         outlog << current_time() << "В чате " << message->chat->id << " пользователь написал: " << message->text.c_str() << endl;
     });
     bot.getEvents().onNonCommandMessage([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
-        bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода");
+        bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода. Справка: /help");
     });
     bot.getEvents().onUnknownCommand([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
-        bot.getApi().sendMessage(message->chat->id, "Данное сообщение является неизвестной командой. Проверьте правильность ввода");
+        bot.getApi().sendMessage(message->chat->id, "Данное сообщение является неизвестной командой. Проверьте правильность ввода. Справка: /help");
     });
     try 
     {

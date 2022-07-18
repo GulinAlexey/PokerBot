@@ -134,11 +134,6 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 {
 	f_game_stage = PREFLOP; //записать в переменную флага текущую стадию игры
 
-	//очистить векторы с картами
-	player_cards.clear();
-	opponent_cards.clear();
-	common_cards.clear();
-
 	//обнулить данные об игровой сессии перед её началом
 	is_player_should_bet_big_blind = 0;
 	pot = 0;
@@ -147,22 +142,28 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	player_stack = DEFAULT_PLAYER_STACK;
 	opponent_stack = DEFAULT_OPPONENT_STACK;
 	big_blind = DEFAULT_BIG_BLIND;
-
-	bot->getApi().sendMessage(message->chat->id, "Запущена новая игра");
-	bot->getApi().sendMessage(message->chat->id, "Первый раунд: Префлоп");
+	//очистить векторы с картами
+	player_cards.clear();
+	opponent_cards.clear();
+	common_cards.clear();
+	
+	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра");
+	bot->getApi().sendMessage(message->chat->id, "🔹 Первый раунд : Preflop");
 
 	uniform_int_distribution<int> f_big_blind_range(0, 1); //диапазон для случайной генерации флага большого блайнда
-	is_player_should_bet_big_blind = f_big_blind_range(random_generator);
+	is_player_should_bet_big_blind = f_big_blind_range(random_generator); //случайная генерация
 	if (is_player_should_bet_big_blind == 1) //игрок должен сделать большой блайнд
 	{
-
+		bot->getApi().sendMessage(message->chat->id, "Делайте большой блайнд.");//////////////////////
+		/////////////////////////////////////////////
 	}
-	else //игрок должен выплатить малый блайнд
+	else //игрок должен сделать малый блайнд
 	{
-
+		bot->getApi().sendMessage(message->chat->id, "Делайте малый блайнд.");//////////////////////
+		///////////////////////////////////////////////////
 	}
-
 	
+
 	write_to_file(); //запись значений в файл
 }
 
