@@ -15,12 +15,27 @@
 #define FLOP 2 //значение флага: вторая стадия игры - флоп
 #define TURN 3 //значение флага: третья стадия игры - тёрн
 #define RIVER 4 //значение флага: четвёртая стадия игры - ривер
+#define SHOWDOWN 5 //значение флага: завершение игры - вскрытие карт и определение победителя с сильнейшей комбинацией карт
+
+#define BEGIN_OF_STAGE 0 //флаг: начало данной стадии игры
+#define BETTING_ROUND 1 //игрок и соперник сделали блайнды, розданы карты, начат круг торговли
+
+#define PLAYER_BET 0 //игрок делает ставку
+#define OPPONENT_BET 1 //соперник делает ставку
 
 #define MODE_NEW_PROFILE 0 //режим создания нового профиля игры и его запись в файл
 #define MODE_EXISTING_PROFILE 1 //режим чтения существующего профиля из файла
 
 #define FOLDER "profiles/" //папка для сохранения данных пользователей
 #define TYPE_OF_PROFILE_FILE ".dat" //тип файла для сохранения данных пользователей
+
+#define TAKE_ACTON_MSG "У вас право хода.\n\nСписок возможных действий:\nraise X — повысить ставку до X фишек (кратно большому блайнду)\n/call — уравнять ставку\n/check — передать ход (может только большой блайнд до повышения ставок)\n/fold — сбросить карты" //сообщение с описанием возможных действий в круге торговли
+#define MSG_BEFORE_BLIND "Сделать блайнд: /make_blind\nВыйти из игры: /exit" //сообщение о том, что игроку следует сделать блайнд
+
+#define RAISE 0 //тип действия в торговле - повысить ставку
+#define CALL 1 //тип действия в торговле - уравнять ставку
+#define CHECK 2 //тип действия в торговле - передать ход
+#define FOLD 3 //тип действия в торговле - сбросить карты
 
 using namespace std;
 
@@ -29,6 +44,7 @@ class Game_info //информация об игре для отдельного
 private:
 	int id_chat; //id чата игрока
 	int f_game_stage; //флаг текущей стадии игры
+	int f_stage_action; //флаг текущего действия в игре (игрок сделал блайнд, получил карты, сделал ставку и т.д.)
 	int is_player_should_bet_big_blind; //должен ли игрок на данном этапе сделать большой блайнд (если =1), или же малый (=0)
 
 	int pot; //банк (сумма всех поставленных игроками фишек)
@@ -53,4 +69,16 @@ public:
 	void write_to_file(); //запись значений в файл (перезапись, если файл уже был создан)
 	void start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message); //начать новую игру
 	Playing_card get_rand_card(); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
+	void send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить инфо о банке, фишках игрока и соперника
+	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
+	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message); //выйти из игры
+	void make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message); //сделать блайнд
+	void end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message); //конец игры
+	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
+	void action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message); //действие игрока в круге торговли
+	bool raise(int bet_size, int player_or_opponent); //повысить ставку
+	bool call(int player_or_opponent); //уравнять ставку
+	bool check(int player_or_opponent); //передать ход
+	void fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Ptr message); //сбросить карты
+	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
 };
