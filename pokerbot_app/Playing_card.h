@@ -9,8 +9,8 @@
 #define KING 13 //численное обозначение - король
 #define ACE 14 //численное обозначение - туз
 
-#define MIN_RANK TWO //наименьшее достоинство карты
-#define MAX_RANK ACE //наибольшее достоинство карты
+#define MIN_VALUE TWO //наименьшее достоинство карты
+#define MAX_VALUE ACE //наибольшее достоинство карты
 
 #define HEARTS 1 //масть - червы
 #define DIAMONDS 2 //масть - бубны
@@ -25,11 +25,11 @@ using namespace std;
 class Playing_card //игральная карта
 {
 private:
-	int rank; //достоинство карты
+	int value; //достоинство карты
 	int suit; //масть карты
 public:
-	Playing_card(int rank_input, int suit_input); //инициализация
-	int get_rank(); //получить достоинство карты
+	Playing_card(int value_input, int suit_input); //инициализация
+	int get_value(); //получить достоинство карты
 	int get_suit(); //получить масть карты
 	string get_name(); //получить имя карты для вывода в сообщении
 };

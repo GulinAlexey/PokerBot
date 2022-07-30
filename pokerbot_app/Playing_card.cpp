@@ -1,14 +1,14 @@
 ﻿#include "Playing_card.h"
 
-Playing_card::Playing_card(int rank_input, int suit_input) //инициализация
+Playing_card::Playing_card(int value_input, int suit_input) //инициализация
 {
-	rank = rank_input;
+	value = value_input;
 	suit = suit_input;
 }
 
-int Playing_card::get_rank() //получить достоинство карты
+int Playing_card::get_value() //получить достоинство карты
 {
-	return rank;
+	return value;
 }
 int Playing_card::get_suit() //получить масть карты
 {
@@ -18,11 +18,11 @@ int Playing_card::get_suit() //получить масть карты
 string Playing_card::get_name() //получить имя карты для вывода в сообщении
 {
 	string card_name;
-	if (rank >= TWO && rank <= TEN)
+	if (value >= TWO && value <= TEN)
 	{
-		card_name = to_string(rank);
+		card_name = to_string(value);
 	}
-	switch (rank)
+	switch (value)
 	{
 	case JACK:
 		card_name = "J";

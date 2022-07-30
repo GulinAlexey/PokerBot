@@ -37,12 +37,30 @@
 #define CHECK 2 //тип действия в торговле - передать ход
 #define FOLD 3 //тип действия в торговле - сбросить карты
 
+#define EMPTY_CARDS -1 //невозможно определить комбинацию карт, так как игрокам ещё не выдали карманные карты
+#define HIGHCARD 0 //комбинация карт - старшая карта
+#define PAIR 1 //комбинация карт - пара
+#define TWO_PAIRS 2 //комбинация карт - две пары
+#define THREE_OF_A_KIND 3 //комбинация карт - сет (тройка)
+#define STRAIGHT 4 //комбинация карт - стрит
+#define FLUSH 5 //комбинация карт - флеш
+#define FULL_HOUSE 6 //комбинация карт - фуллхаус (три плюс два)
+#define FOUR_OF_A_KIND 7 //комбинация карт - каре
+#define STRAIGHT_FLUSH 8 //комбинация карт - стрит-флеш
+#define ROYAL_FLUSH 9 //комбинация карт - роял-флеш
+
 using namespace std;
 
 class Game_info //информация об игре для отдельного пользователя
 {
 private:
 	int id_chat; //id чата игрока
+
+	int won_chips; //общее кол-во выигранных фишек за все игры
+	int	lost_chips; //общее кол-во проигранных фишек за все игры
+	int wins_qty; //всего побед
+	int losses_qty; //всего поражений
+
 	int f_game_stage; //флаг текущей стадии игры
 	int f_stage_action; //флаг текущего действия в игре (игрок сделал блайнд, получил карты, сделал ставку и т.д.)
 	int is_player_should_bet_big_blind; //должен ли игрок на данном этапе сделать большой блайнд (если =1), или же малый (=0)
@@ -81,4 +99,6 @@ public:
 	bool check(int player_or_opponent); //передать ход
 	void fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Ptr message); //сбросить карты
 	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
+	void statistics(TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести статистику выигрышей и проигрышей
+	vector <Playing_card> determine_card_combination(int player_or_opponent, int* combination, int* kicker_value); //определить карточную комбинацию и кикер для сравнения комбинаций игроков
 };

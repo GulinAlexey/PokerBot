@@ -17,6 +17,10 @@ void Game_info::init(int id_chat_input, int f_mode, TgBot::Bot* bot, TgBot::Mess
 	case MODE_NEW_PROFILE: //режим создания нового профиля игры и его запись в файл
 create_new_profile: //метка создания нового профиля (если не был найден существующий)
 		id_chat = id_chat_input;
+		won_chips = 0;
+		lost_chips = 0;
+		wins_qty = 0;
+		losses_qty = 0;
 		f_game_stage = GAME_NOT_STARTED;
 		f_stage_action = BEGIN_OF_STAGE;
 		is_player_should_bet_big_blind = 0;
@@ -50,6 +54,10 @@ bool Game_info::read_from_file() //чтение значений из файла
 		return false;
 	}
 	fin >> id_chat;
+	fin >> won_chips;
+	fin >> lost_chips;
+	fin >> wins_qty;
+	fin >> losses_qty;
 	fin >> f_game_stage;
 	fin >> f_stage_action;
 	fin >> is_player_should_bet_big_blind;
@@ -64,10 +72,10 @@ bool Game_info::read_from_file() //чтение значений из файла
 	fin >> qty_player_cards;
 	for (int i = 0; i < qty_player_cards; i++)
 	{
-		int card_rank, card_suit;
-		fin >> card_rank;
+		int card_value, card_suit;
+		fin >> card_value;
 		fin >> card_suit;
-		Playing_card card(card_rank, card_suit);
+		Playing_card card(card_value, card_suit);
 		player_cards.push_back(card);
 	}
 
@@ -75,10 +83,10 @@ bool Game_info::read_from_file() //чтение значений из файла
 	fin >> qty_opponent_cards;
 	for (int i = 0; i < qty_opponent_cards; i++)
 	{
-		int card_rank, card_suit;
-		fin >> card_rank;
+		int card_value, card_suit;
+		fin >> card_value;
 		fin >> card_suit;
-		Playing_card card(card_rank, card_suit);
+		Playing_card card(card_value, card_suit);
 		opponent_cards.push_back(card);
 	}
 
@@ -86,10 +94,10 @@ bool Game_info::read_from_file() //чтение значений из файла
 	fin >> qty_common_cards;
 	for (int i = 0; i < qty_common_cards; i++)
 	{
-		int card_rank, card_suit;
-		fin >> card_rank;
+		int card_value, card_suit;
+		fin >> card_value;
 		fin >> card_suit;
-		Playing_card card(card_rank, card_suit);
+		Playing_card card(card_value, card_suit);
 		common_cards.push_back(card);
 	}
 
@@ -102,6 +110,10 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	ofstream fout;
 	fout.open(FOLDER + to_string(id_chat) + TYPE_OF_PROFILE_FILE, ios::out); //открыть файл для записи
 	fout << id_chat << endl;
+	fout << won_chips << endl;
+	fout << lost_chips << endl;
+	fout << wins_qty << endl;
+	fout << losses_qty << endl;
 	fout << f_game_stage << endl;
 	fout << f_stage_action << endl;
 	fout << is_player_should_bet_big_blind << endl;
@@ -115,19 +127,19 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	fout << player_cards.size() << endl;
 	for (int i = 0; i < player_cards.size(); i++)
 	{
-		fout << player_cards[i].get_rank() << " " << player_cards[i].get_suit() << endl;
+		fout << player_cards[i].get_value() << " " << player_cards[i].get_suit() << endl;
 	}
 
 	fout << opponent_cards.size() << endl;
 	for (int i = 0; i < opponent_cards.size(); i++)
 	{
-		fout << opponent_cards[i].get_rank() << " " << opponent_cards[i].get_suit() << endl;
+		fout << opponent_cards[i].get_value() << " " << opponent_cards[i].get_suit() << endl;
 	}
 
 	fout << common_cards.size() << endl;
 	for(int i=0; i < common_cards.size(); i++)
 	{
-		fout << common_cards[i].get_rank() << " " << common_cards[i].get_suit() << endl;
+		fout << common_cards[i].get_value() << " " << common_cards[i].get_suit() << endl;
 	}
 
 	fout.close(); //закрыть файл
@@ -175,21 +187,21 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 Playing_card Game_info::get_rand_card() //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
 {
 	uniform_int_distribution<int> suit_range(FISRT_SUIT, LAST_SUIT); //диапазон для случайной генерации масти карты
-	uniform_int_distribution<int> rank_range(MIN_RANK, MAX_RANK); //диапазон для случайной генерации достоинства карты
+	uniform_int_distribution<int> value_range(MIN_VALUE, MAX_VALUE); //диапазон для случайной генерации достоинства карты
 
-	int rand_rank;  //случайное достоинство карты
+	int rand_value;  //случайное достоинство карты
 	int rand_suit; //случайная масть карты
 	int f_duplicate; //флаг, что найдено совпадение с картами игрока, соперника или общими картами
 
 	do //генерировать случайные значения, пока не будет найдена карта, не совпадающая с имеющимися
 	{
-		rand_rank = rank_range(random_generator); //случайное достоинство карты
+		rand_value = value_range(random_generator); //случайное достоинство карты
 		rand_suit = suit_range(random_generator); //случайная масть карты
 		f_duplicate = 0;
 
 		for (int i = 0; i < player_cards.size(); i++)
 		{
-			if (player_cards[i].get_rank() == rand_rank && player_cards[i].get_suit() == rand_suit)
+			if (player_cards[i].get_value() == rand_value && player_cards[i].get_suit() == rand_suit)
 			{
 				f_duplicate = 1;
 				break;
@@ -197,7 +209,7 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 		}
 		for (int i = 0; i < opponent_cards.size(); i++)
 		{
-			if (opponent_cards[i].get_rank() == rand_rank && opponent_cards[i].get_suit() == rand_suit)
+			if (opponent_cards[i].get_value() == rand_value && opponent_cards[i].get_suit() == rand_suit)
 			{
 				f_duplicate = 1;
 				break;
@@ -205,7 +217,7 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 		}
 		for (int i = 0; i < common_cards.size(); i++)
 		{
-			if (common_cards[i].get_rank() == rand_rank && common_cards[i].get_suit() == rand_suit)
+			if (common_cards[i].get_value() == rand_value && common_cards[i].get_suit() == rand_suit)
 			{
 				f_duplicate = 1;
 				break;
@@ -213,7 +225,7 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 		}
 	} while (f_duplicate == 1);
 
-	Playing_card rand_card(rand_rank, rand_suit);
+	Playing_card rand_card(rand_value, rand_suit);
 	return  rand_card;
 }
 
@@ -382,10 +394,14 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 	if (player_wins == false) //игрок проиграл
 	{
 		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + " фишек.\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + " фишек.\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + "фишек.");
+		lost_chips += DEFAULT_PLAYER_STACK - player_stack; //увеличить общее число проигранных фишек за всё время
+		losses_qty++; //увеличить общее число проигрышей
 	}
 	else //игрок победил
 	{
 		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + " фишек.\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + " фишек.\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + "фишек.");
+		won_chips += pot - (DEFAULT_PLAYER_STACK - player_stack); //увеличить общее число выигранных фишек за всё время
+		wins_qty++; //увеличить общее число выигрышей
 	}
 
 	write_to_file(); //запись значений в файл
@@ -471,8 +487,6 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 	{
 		auto_action(bot, message); //соперник действует в торгах
 	}
-
-	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 }
 
 bool Game_info::raise(int bet_size, int player_or_opponent) //повысить ставку
@@ -579,16 +593,422 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 		bot->getApi().sendMessage(message->chat->id, "🔹 Вскрытие карт");
 		//////////////////////////////////
 
+
+		write_to_file(); //запись значений в файл
 		return;
 		break;
 	}
 
 	if (is_player_should_bet_big_blind == 1) //игрок должен сделать большой блайнд
 	{
-		
+		make_bet(big_blind / 2, OPPONENT_BET); //соперник сделал малый блайнд
+		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить большой блайнд (" + to_string(big_blind) + " фишки)."
+			+ "\n\nВаш соперник сделал малый блайнд (" + to_string(big_blind / 2) + " фишка).\n\n" + MSG_BEFORE_BLIND);
 	}
 	else //игрок должен сделать малый блайнд
 	{
-		
+		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить малый блайнд (" + to_string(big_blind / 2) + " фишку)."
+			+ "\n\n" + MSG_BEFORE_BLIND);
+	}
+
+	write_to_file(); //запись значений в файл
+}
+
+void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вывести статистику выигрышей и проигрышей
+{
+	string stat = "Ваша статистика за всё время:\nПроведено игр:" + to_string(wins_qty + losses_qty)
+		+ "Победы: " + to_string(wins_qty) + " (" + to_string(floor(float(wins_qty) / (wins_qty + losses_qty) * 100 * 100) / 100) + "%)"
+		+ "\nПоражения: " + to_string(losses_qty) + " (" + to_string(floor(float(losses_qty) / (wins_qty + losses_qty) * 100 * 100) / 100) + "%)"
+		+ "\nКол-во выигранных фишек: " + to_string(won_chips) + " шт."
+		+ "\nКол-во проигранных фишек: " + to_string(lost_chips) + " шт."
+		+ "\nИтоговое кол-во фишек: " + to_string(won_chips - lost_chips) + " шт.";
+
+	bot->getApi().sendMessage(message->chat->id, stat);
+}
+
+vector <Playing_card> Game_info::determine_card_combination(int player_or_opponent, int* combination_type, int* kicker_value) //определить карточную комбинацию и кикер для сравнения комбинаций игроков
+{
+	vector <Playing_card> pocket_cards; //карты игрока или же соперника
+	vector <Playing_card> card_combination; //карты в комбинации
+	if (player_or_opponent == PLAYER_BET)
+		pocket_cards = player_cards;
+	else
+		pocket_cards = opponent_cards;
+
+	if (pocket_cards.size() == 0 || pocket_cards.size() == 1) //если карт у игрока ещё нет, то вернуть значение пустой комбинации
+	{
+		(*combination_type) = EMPTY_CARDS;
+		(*kicker_value) = EMPTY_CARDS;
+		return card_combination;
+	}
+
+	if (common_cards.size() == 0) //общие карты ещё не были розданы, но у игроков есть карманные карты
+	{
+		//(в данном случае функция используется соперником для просчёта хода в начале игры, поэтому выводить карты из комбинации в return нет надобности)
+		if (pocket_cards[0].get_value() == pocket_cards[1].get_value()) //среди карманных карт есть пара
+		{
+			(*combination_type) = PAIR;
+			(*kicker_value) = pocket_cards[0].get_value();
+		}
+		else //определить старшую карту среди карманных карт
+		{
+			(*combination_type) = HIGHCARD;
+			if (pocket_cards[0].get_value() >= pocket_cards[1].get_value())
+				(*kicker_value) = pocket_cards[0].get_value();
+			else
+				(*kicker_value) = pocket_cards[1].get_value();
+		}
+		return card_combination;
+	}
+	else //общие карты уже розданы (как минимум 3 шт.)
+	{
+		vector <Playing_card> pocket_and_common_cards; //карты, из которых составляется комбинация (карманные карты игрока + общие карты)
+		pocket_and_common_cards = pocket_cards; //скопировать карманные карты в карты для комбинаций
+		for (int i = 0; i < common_cards.size(); i++) //скопировать общие карты в карты для комбинаций
+			pocket_and_common_cards.push_back(common_cards[i]);
+
+		//сортировка карт по убыванию достоинств
+		for (int k = 1; k < pocket_and_common_cards.size(); k++) //метод пузырька
+			for (int i = 0; i < pocket_and_common_cards.size() - k; i++)
+				if (pocket_and_common_cards[i].get_value() < pocket_and_common_cards[i + 1].get_value())
+				{
+					Playing_card tmp = pocket_and_common_cards[i];
+					pocket_and_common_cards[i] = pocket_and_common_cards[i + 1];
+					pocket_and_common_cards[i + 1] = tmp;
+				}
+
+		//поиск комбинации стрит-флеш (и роял-флеш)
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //найти оставшиеся 4 карты комбинации
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value()-1 && pocket_and_common_cards[j].get_suit() == card_combination.back().get_suit())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 5)
+						break;
+				}
+			}
+			if (card_combination.size() == 4 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит-флеш (5,4,3,2,A)
+			{
+				for (int j = 0; j < pocket_and_common_cards.size(); j++)
+				{
+					if (pocket_and_common_cards[j].get_value() == ACE && pocket_and_common_cards[j].get_suit() == card_combination.back().get_suit())
+					{
+						card_combination.push_back(pocket_and_common_cards[j]);
+						break;
+					}
+				}
+			}
+			if (card_combination.size() == 5) //комбинация из 5 карт найдена
+			{
+				(*kicker_value) = card_combination.front().get_value();
+				if (*kicker_value == ACE) //найден роял-флеш
+					(*combination_type) = ROYAL_FLUSH;
+				else //найден стрит-флеш
+					(*combination_type) = STRAIGHT_FLUSH;
+				return card_combination;
+			}
+		}
+
+		//поиск комбинации каре
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //найти оставшиеся 4 карты комбинации
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 4)
+						break;
+				}
+			}
+
+			if (card_combination.size() == 4) //комбинация каре найдена
+			{
+				(*combination_type) = FOUR_OF_A_KIND;
+				Playing_card kicker(0, 0);
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск кикера
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value())
+					{
+						kicker = pocket_and_common_cards[j];
+						break;
+					}
+				}
+				(*kicker_value) = kicker.get_value();
+				card_combination.push_back(kicker); //кикер тоже является частью комбинации
+				return card_combination;
+			}
+		}
+
+		//поиск комбинации фуллхаус (сет + пара)
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //поиск сета
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 3)
+						break;
+				}
+			}
+			if (card_combination.size() == 3) //сет найден
+			{
+				Playing_card pair_card(0,0); //первая карта из пары
+				bool f_success_pair = false; //флаг успеха нахождения второй карты из пары
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск первой карты из пары
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value()) //парная карта не является частью сета
+					{
+						pair_card = pocket_and_common_cards[j];
+						for (int k = j + 1; k < pocket_and_common_cards.size(); k++) //поиск второй карты из пары
+						{
+							if (pocket_and_common_cards[k].get_value() == pair_card.get_value()) //пара найдена
+							{
+								f_success_pair = true;
+								card_combination.push_back(pair_card);
+								card_combination.push_back(pocket_and_common_cards[k]);
+								break;
+							}
+							else
+								break; //из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
+						}
+						if (f_success_pair == true) //пара найдена
+							break;
+					}
+				}
+				if (f_success_pair == true) //пара найдена, значит фуллхаус собран
+				{
+					(*combination_type) = FULL_HOUSE;
+					(*kicker_value) = card_combination.front().get_value();
+					return card_combination;
+				}
+			}
+		}
+
+		//поиск комбинации флеш
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //поиск комбинации
+			{
+				if (pocket_and_common_cards[j].get_suit() == card_combination.back().get_suit())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 5)
+					{
+						break;
+					}
+				}
+			}
+			if (card_combination.size() == 5) //комбинация флеш найдена
+			{
+				(*combination_type) = FLUSH;
+				(*kicker_value) = card_combination.front().get_value();
+				return card_combination;
+			}
+		}
+
+		//поиск комбинации стрит
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //найти оставшиеся 4 карты комбинации
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value() - 1)
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 5)
+						break;
+				}
+			}
+			if (card_combination.size() == 4 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит (5,4,3,2,A)
+			{
+				for (int j = 0; j < pocket_and_common_cards.size(); j++)
+				{
+					if (pocket_and_common_cards[j].get_value() == ACE)
+					{
+						card_combination.push_back(pocket_and_common_cards[j]);
+						break;
+					}
+				}
+			}
+			if (card_combination.size() == 5) //комбинация из 5 карт найдена
+			{
+				(*kicker_value) = card_combination.front().get_value();
+				(*combination_type) = STRAIGHT;
+				return card_combination;
+			}
+		}
+
+		//поиск комбинации сет
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //поиск комбинации
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 3)
+					{
+						break;
+					}
+				}
+			}
+			if (card_combination.size() == 3) //сет найден
+			{
+				(*combination_type) = THREE_OF_A_KIND;
+				Playing_card kicker(0, 0);
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск кикера
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value())
+					{
+						kicker = pocket_and_common_cards[j];
+						break;
+					}
+				}
+				(*kicker_value) = kicker.get_value();
+				card_combination.push_back(kicker); //кикер тоже является частью комбинации
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск 5-й карты комбнации (любой из оставшихся)
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value() && pocket_and_common_cards[j].get_value() != card_combination.back().get_value())
+					{
+						card_combination.push_back(pocket_and_common_cards[j]);
+						break;
+					}
+				}
+				return card_combination;
+			}
+		}
+
+		//поиск комбинации две пары
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //поиск первой пары
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 2)
+						break;
+				}
+				else
+					break; //из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
+			}
+			if (card_combination.size() == 2) //первая пара найдена
+			{
+				Playing_card second_pair_card(0, 0); //первая карта из второй пары
+				bool f_success_pair = false; //флаг успеха нахождения второй карты из второй пары
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск первой карты из второй пары
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value()) //парная карта не является частью первой пары
+					{
+						second_pair_card = pocket_and_common_cards[j];
+						for (int k = j + 1; k < pocket_and_common_cards.size(); k++) //поиск второй карты из второй пары
+						{
+							if (pocket_and_common_cards[k].get_value() == second_pair_card.get_value()) //вторая пара найдена
+							{
+								f_success_pair = true;
+								card_combination.push_back(second_pair_card);
+								card_combination.push_back(pocket_and_common_cards[k]);
+								break;
+							}
+							else
+								break; //из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
+						}
+						if (f_success_pair == true) //вторая пара найдена
+							break;
+					}
+				}
+				if (f_success_pair == true) //вторая пара найдена, значит две пары собрано
+				{
+					(*combination_type) = TWO_PAIRS;
+					Playing_card kicker(0, 0);
+					for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск кикера
+					{
+						if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value() && pocket_and_common_cards[j].get_value() != card_combination.back().get_value())
+						{
+							kicker = pocket_and_common_cards[j];
+							break;
+						}
+					}
+					(*kicker_value) = kicker.get_value();
+					card_combination.push_back(kicker); //кикер тоже является частью комбинации
+					return card_combination;
+				}
+			}
+		}
+
+		//поиск комбинации пара
+		for (int i = 0; i < pocket_and_common_cards.size(); i++)
+		{
+			card_combination.clear(); //очистить комбинацию
+			card_combination.push_back(pocket_and_common_cards[i]); //поместить карту - начало комбинации
+			for (int j = i + 1; j < pocket_and_common_cards.size(); j++) //поиск пары
+			{
+				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
+				{
+					card_combination.push_back(pocket_and_common_cards[j]);
+					if (card_combination.size() == 2)
+					{
+						break;
+					}
+				}
+				else
+					break; ////из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
+			}
+			if (card_combination.size() == 2) //пара найдена
+			{
+				(*combination_type) = PAIR;
+
+				Playing_card kicker(0, 0);
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск кикера
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value())
+					{
+						kicker = pocket_and_common_cards[j];
+						break;
+					}
+				}
+				(*kicker_value) = kicker.get_value();
+				card_combination.push_back(kicker); //кикер тоже является частью комбинации
+				for (int j = 0; j < pocket_and_common_cards.size(); j++) //поиск 4-й и 5-й карт комбнации (любые из оставшихся)
+				{
+					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value() && pocket_and_common_cards[j].get_value() != kicker.get_value())
+					{
+						card_combination.push_back(pocket_and_common_cards[j]);
+						if (card_combination.size() == 5)
+						{
+							break;
+						}
+					}
+				}
+				return card_combination;
+			}
+		}
+					
+		//поиск старшей карты
+		card_combination = pocket_and_common_cards;
+		card_combination.resize(5);
+		(*combination_type) = HIGHCARD;
+		(*kicker_value) = card_combination.front().get_value();
+		return card_combination;
 	}
 }

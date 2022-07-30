@@ -51,7 +51,7 @@ int main()
     Game_info current_game_info; //объект с информацией об игре текущего пользователя
 
     bot.getEvents().onCommand("start", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды start
-        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров).\n\nНачать новую игру: /new_game\nСправка: /help");
+        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров).\n\nНачать новую игру: /new_game\nСправка: /help\nСтатистика: /statistics");
         current_game_info.init(message->chat->id, MODE_NEW_PROFILE, &bot, message); //инициализация профиля текущей игры и его создание, запись в файл
         });
     bot.getEvents().onCommand("new_game", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды new_game
@@ -78,11 +78,15 @@ int main()
         current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
         current_game_info.action_of_player(FOLD, 0, &bot, message); //выполнение действия сброса карт
         });
-    bot.getEvents().onCommand("raise", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды 
+    bot.getEvents().onCommand("raise", [&bot](TgBot::Message::Ptr message) { //при получении команды 
         bot.getApi().sendMessage(message->chat->id, "Команда raise употребляется без символа /");
         });
-    bot.getEvents().onCommand("help", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды help
+    bot.getEvents().onCommand("help", [&bot](TgBot::Message::Ptr message) { //при получении команды help
         bot.getApi().sendMessage(message->chat->id, HELP_TEXT);
+        });
+    bot.getEvents().onCommand("statistics", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды statistics
+        current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
+        current_game_info.statistics(&bot, message); //вывести статистику выигрышей и проигрышей
         });
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
         outlog << current_time() << "В чате " << message->chat->id << " пользователь написал: " << message->text.c_str() << endl;
