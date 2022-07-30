@@ -234,8 +234,8 @@ void Game_info::send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message) /
 	string game_status = "Текущие показатели:\nБанк: " + to_string(pot) + " фишек"
 		+ "\nВаш стек: " + to_string(player_stack) + " фишек"
 		+ "\nСтек соперника: " + to_string(opponent_stack) + " фишек"
-		+ "\nВаша текущая ставка: " + to_string(player_bet) + "фишек"
-		+ "\nТекущая ставка соперника: " + to_string(opponent_bet) + "фишек";
+		+ "\nВаша текущая ставка: " + to_string(player_bet) + " фишек"
+		+ "\nТекущая ставка соперника: " + to_string(opponent_bet) + " фишек";
 	if (player_cards.size()>0)
 	{
 		game_status += "\n\nВаши карманные карты:";
@@ -641,7 +641,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 		(*kicker_value) = EMPTY_CARDS;
 		return card_combination;
 	}
-
+	
 	if (common_cards.size() == 0) //общие карты ещё не были розданы, но у игроков есть карманные карты
 	{
 		//(в данном случае функция используется соперником для просчёта хода в начале игры, поэтому выводить карты из комбинации в return нет надобности)
@@ -666,7 +666,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 		pocket_and_common_cards = pocket_cards; //скопировать карманные карты в карты для комбинаций
 		for (int i = 0; i < common_cards.size(); i++) //скопировать общие карты в карты для комбинаций
 			pocket_and_common_cards.push_back(common_cards[i]);
-
+		
 		//сортировка карт по убыванию достоинств
 		for (int k = 1; k < pocket_and_common_cards.size(); k++) //метод пузырька
 			for (int i = 0; i < pocket_and_common_cards.size() - k; i++)
@@ -676,7 +676,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 					pocket_and_common_cards[i] = pocket_and_common_cards[i + 1];
 					pocket_and_common_cards[i + 1] = tmp;
 				}
-
+		
 		//поиск комбинации стрит-флеш (и роял-флеш)
 		for (int i = 0; i < pocket_and_common_cards.size(); i++)
 		{
@@ -713,7 +713,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 				return card_combination;
 			}
 		}
-
+		
 		//поиск комбинации каре
 		for (int i = 0; i < pocket_and_common_cards.size(); i++)
 		{
@@ -795,7 +795,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 				}
 			}
 		}
-
+		
 		//поиск комбинации флеш
 		for (int i = 0; i < pocket_and_common_cards.size(); i++)
 		{
@@ -895,7 +895,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 				return card_combination;
 			}
 		}
-
+		
 		//поиск комбинации две пары
 		for (int i = 0; i < pocket_and_common_cards.size(); i++)
 		{
@@ -1003,10 +1003,13 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 				return card_combination;
 			}
 		}
-					
+			
 		//поиск старшей карты
-		card_combination = pocket_and_common_cards;
-		card_combination.resize(5);
+		card_combination.clear();
+		for (int i = 0; i < 5; i++)
+		{
+			card_combination.push_back(pocket_and_common_cards[i]);
+		}
 		(*combination_type) = HIGHCARD;
 		(*kicker_value) = card_combination.front().get_value();
 		return card_combination;

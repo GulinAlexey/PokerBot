@@ -18,11 +18,13 @@
 #define PATH_OF_TOKEN "data/token.dat" //путь к файлу, в котором хранится токен телеграм-бота
 #define PATH_OF_LOG "log.txt" //путь к файлу для записи в лог
 
+#define LOG_MAX_SIZE 6000000 //(примерно равно 5,7 МБ) - максимальный размер файла лога в символах 
+
 #define HELP_TEXT "Чтобы начать новую игру, отправьте /new_game\n\nТермины:\nБанк — сумма всех ставок игроков.\nСтек — кол-во фишек на руках у игрока, которые он может поставить.\nБлайнд — обязательная ставка в начале раунда."
 
 using namespace std;
 
-ofstream outlog(PATH_OF_LOG, ios::app); //поток вывода лога работы в конец файла лог
+fstream outlog(PATH_OF_LOG, ios::in|ios::app); //поток вывода лога работы в конец файла лог
 
 string current_time() //получить строку с текущим временем (для лога)
 {
@@ -89,6 +91,14 @@ int main()
         current_game_info.statistics(&bot, message); //вывести статистику выигрышей и проигрышей
         });
     bot.getEvents().onAnyMessage([&bot](TgBot::Message::Ptr message) { //при получении любого сообщения
+        ifstream::streampos filesize = outlog.tellg(); //узнать позицию вывода в файл
+        if (filesize > LOG_MAX_SIZE) //очистить файл лога, если он превысил предел размера, и снова открыть для записи
+        {
+            outlog.close();
+            outlog.open(PATH_OF_LOG, ios::out);
+            outlog.close();
+            outlog.open(PATH_OF_LOG, ios::in | ios::app); 
+        }
         outlog << current_time() << "В чате " << message->chat->id << " пользователь написал: " << message->text.c_str() << endl;
         });
     bot.getEvents().onNonCommandMessage([&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении не команды
