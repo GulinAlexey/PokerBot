@@ -231,7 +231,7 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 
 void Game_info::send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message) //отправить инфо о банке, фишках игрока и соперника
 {
-	string game_status = "Текущие показатели:\nБанк: " + to_string(pot) + " фишек"
+	string game_status = "Текущие показатели:\n\nБанк: " + to_string(pot) + " фишек"
 		+ "\nВаш стек: " + to_string(player_stack) + " фишек"
 		+ "\nСтек соперника: " + to_string(opponent_stack) + " фишек"
 		+ "\nВаша текущая ставка: " + to_string(player_bet) + " фишек"
@@ -393,13 +393,13 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 	f_game_stage = GAME_NOT_STARTED;
 	if (player_wins == false) //игрок проиграл
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + " фишек.\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + " фишек.\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + "фишек.");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + " фишек.\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + " фишек.\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + " фишек.");
 		lost_chips += DEFAULT_PLAYER_STACK - player_stack; //увеличить общее число проигранных фишек за всё время
 		losses_qty++; //увеличить общее число проигрышей
 	}
 	else //игрок победил
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + " фишек.\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + " фишек.\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + "фишек.");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + " фишек.\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + " фишек.\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + " фишек.");
 		won_chips += pot - (DEFAULT_PLAYER_STACK - player_stack); //увеличить общее число выигранных фишек за всё время
 		wins_qty++; //увеличить общее число выигрышей
 	}
@@ -616,9 +616,25 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 
 void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вывести статистику выигрышей и проигрышей
 {
-	string stat = "Ваша статистика за всё время:\nПроведено игр:" + to_string(wins_qty + losses_qty)
-		+ "Победы: " + to_string(wins_qty) + " (" + to_string(floor(float(wins_qty) / (wins_qty + losses_qty) * 100 * 100) / 100) + "%)"
-		+ "\nПоражения: " + to_string(losses_qty) + " (" + to_string(floor(float(losses_qty) / (wins_qty + losses_qty) * 100 * 100) / 100) + "%)"
+	double percent_wins = 0; //средний процент побед игрока
+	double percent_losses = 0; //средний процент поражений игрока
+	if (wins_qty != 0)
+	{
+		percent_wins = round(double(wins_qty) / (wins_qty + losses_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
+	}
+	if (losses_qty != 0)
+	{
+		percent_losses = round(double(losses_qty) / (wins_qty + losses_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
+	}
+
+	string str_percent_wins = to_string(percent_wins); //перевод double в string
+	string str_percent_losses = to_string(percent_losses); //перевод double в string
+	str_percent_wins.erase(str_percent_wins.size() - 4); //стереть 4 лишних нуля в дробной части (нужно из-за исп. типа double)
+	str_percent_losses.erase(str_percent_losses.size() - 4); //стереть 4 лишних нуля в дробной части (нужно из-за исп. типа double)
+
+	string stat = "Ваша статистика за всё время:\n\nПроведено игр: " + to_string(wins_qty + losses_qty)
+		+ "\nПобеды: " + to_string(wins_qty) + " (" + str_percent_wins + "%)"
+		+ "\nПоражения: " + to_string(losses_qty) + " (" + str_percent_losses + "%)"
 		+ "\nКол-во выигранных фишек: " + to_string(won_chips) + " шт."
 		+ "\nКол-во проигранных фишек: " + to_string(lost_chips) + " шт."
 		+ "\nИтоговое кол-во фишек: " + to_string(won_chips - lost_chips) + " шт.";
