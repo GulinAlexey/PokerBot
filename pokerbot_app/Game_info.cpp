@@ -164,8 +164,8 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	common_cards.clear();
 	
 	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра.\n\nБольшой блайнд = " + to_string(big_blind) + word_chip(big_blind) +", малый блайнд = " + to_string(big_blind/2) + word_chip(big_blind / 2));
-	send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
-	bot->getApi().sendMessage(message->chat->id, "🔹 Первый раунд : Preflop");
+	bot->getApi().sendMessage(message->chat->id, "🔷 Первый раунд : Preflop");
+	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
 
 	uniform_int_distribution<int> f_big_blind_range(0, 1); //диапазон для случайной генерации флага большого блайнда
 	is_player_should_bet_big_blind = f_big_blind_range(random_generator); //случайная генерация
@@ -294,8 +294,6 @@ void Game_info::exit(TgBot::Bot* bot, TgBot::Message::Ptr message) //выйти 
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы вышли из игры");
 		end(false, bot, message); //выход из игры приравнивается к поражению
-
-		write_to_file(); //запись значений в файл
 	}
 }
 
@@ -316,10 +314,14 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if (is_player_should_bet_big_blind == 0) //игрок должен сделать малый блайнд
 	{
 		f_blind_is_successful = make_bet(big_blind / 2, PLAYER_BET); //сделать ставку
+		if (f_blind_is_successful == true)
+			bot->getApi().sendMessage(message->chat->id, "Вы сделали ставку (" + to_string(big_blind / 2) + word_chip(big_blind / 2) + ")");
 	}
 	else //игрок должен сделать большой блайнд
 	{
 		f_blind_is_successful = make_bet(big_blind, PLAYER_BET); //сделать ставку
+		if (f_blind_is_successful == true)
+			bot->getApi().sendMessage(message->chat->id, "Вы сделали ставку (" + to_string(big_blind) + word_chip(big_blind) + ")");
 	}
 	if (f_blind_is_successful == false) //у игрока недостаточно фишек для блайнда
 	{
@@ -373,19 +375,18 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 		break;
 	}
 	f_stage_action = BETTING_ROUND; //установить флаг текущего состояния игры в значение торговли
-	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
-	bot->getApi().sendMessage(message->chat->id, "Начат круг торговли");
+	write_to_file(); //запись значений в файл
+	bot->getApi().sendMessage(message->chat->id, "🔹 Начат круг торговли");
 
 	//первым в торгах в префлопе действует игрок с малым блайндом, в остальных раундах - игрок с большим блайндом
 	//проверка, должен ли соперник первым действовать в торгах
 	if ((is_player_should_bet_big_blind == 1 && f_game_stage == PREFLOP) || (is_player_should_bet_big_blind == 0 && f_game_stage != PREFLOP))
 	{
 		auto_action(bot, message);//соперник действует в торгах
-		send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
 	}
-	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 
-	write_to_file(); //запись значений в файл
+	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
+	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 }
 
 void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message) //конец игры
@@ -413,6 +414,7 @@ void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ст
 	////////////////
 	call(OPPONENT_BET);//////////////////
 	bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE)); ///////////
+	write_to_file(); //запись значений в файл
 }
 
 void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message) //действие игрока в круге торговли
@@ -496,8 +498,6 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 	}
 
 	write_to_file(); //запись значений в файл
-
-	send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
 
 	if (player_bet == opponent_bet) //если ставки уравнялись
 	{
@@ -606,7 +606,11 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 {
 	f_game_stage++; //установить флаг следующей стадии игры
 	f_stage_action = BEGIN_OF_STAGE; //установить флаг начала стадии
-	bot->getApi().sendMessage(message->chat->id, "Ставки уравнены, торги завершены");
+	bot->getApi().sendMessage(message->chat->id, "🔹 Ставки уравнены, торги завершены");
+	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
+
+	player_bet = 0; //отсчёт ставок в новом раунде начинается заново
+	opponent_bet = 0;
 
 	if (is_player_should_bet_big_blind == 1) //игрок в прошлом раунде сделал большой блайнд
 	{
@@ -620,16 +624,16 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 	switch (f_game_stage)
 	{
 	case FLOP:
-		bot->getApi().sendMessage(message->chat->id, "🔹 Второй раунд : Flop");
+		bot->getApi().sendMessage(message->chat->id, "🔷 Второй раунд : Flop");
 		break;
 	case TURN:
-		bot->getApi().sendMessage(message->chat->id, "🔹 Третий раунд : Turn");
+		bot->getApi().sendMessage(message->chat->id, "🔷 Третий раунд : Turn");
 		break;
 	case RIVER:
-		bot->getApi().sendMessage(message->chat->id, "🔹 Четвёртый раунд : River");
+		bot->getApi().sendMessage(message->chat->id, "🔷 Четвёртый раунд : River");
 		break;
 	case SHOWDOWN:
-		bot->getApi().sendMessage(message->chat->id, "🔹 Вскрытие карт");
+		bot->getApi().sendMessage(message->chat->id, "🔷 Вскрытие карт");
 		string str_output; //строка для вывода инфо в сообщении
 		//////////////////////////////////
 
