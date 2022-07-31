@@ -163,7 +163,7 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	opponent_cards.clear();
 	common_cards.clear();
 	
-	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра.\n\nБольшой блайнд = " + to_string(big_blind) + " фишки, малый блайнд = " + to_string(big_blind/2) + " фишка");
+	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра.\n\nБольшой блайнд = " + to_string(big_blind) + word_chip(big_blind) +", малый блайнд = " + to_string(big_blind/2) + word_chip(big_blind / 2));
 	send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
 	bot->getApi().sendMessage(message->chat->id, "🔹 Первый раунд : Preflop");
 
@@ -172,12 +172,12 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	if (is_player_should_bet_big_blind == 1) //игрок должен сделать большой блайнд
 	{
 		make_bet(big_blind / 2, OPPONENT_BET); //соперник сделал малый блайнд
-		bot->getApi().sendMessage(message->chat->id, "Согласно случайному выбору, вам выпал большой блайнд. Вам следует поставить " + to_string(big_blind) + " фишки."
-			+ "\n\nВаш соперник сделал малый блайнд (" + to_string(big_blind / 2) + " фишка).\n\n" + MSG_BEFORE_BLIND);																																			/////////////////////////////////////////////
+		bot->getApi().sendMessage(message->chat->id, "Согласно случайному выбору, вам выпал большой блайнд. Вам следует поставить " + to_string(big_blind) + word_chip(big_blind, ACCUSATIVE) + "."
+			+ "\n\nВаш соперник сделал малый блайнд (" + to_string(big_blind / 2) + word_chip(big_blind / 2) + ").\n\n" + MSG_BEFORE_BLIND);																																			/////////////////////////////////////////////
 	}
 	else //игрок должен сделать малый блайнд
 	{
-		bot->getApi().sendMessage(message->chat->id, "Согласно случайному выбору, вам выпал малый блайнд. Вам следует поставить " + to_string(big_blind/2) + " фишку."
+		bot->getApi().sendMessage(message->chat->id, "Согласно случайному выбору, вам выпал малый блайнд. Вам следует поставить " + to_string(big_blind/2) + word_chip(big_blind / 2, ACCUSATIVE) + "."
 			+ "\n\n" + MSG_BEFORE_BLIND);
 	}
 
@@ -231,11 +231,11 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 
 void Game_info::send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message) //отправить инфо о банке, фишках игрока и соперника
 {
-	string game_status = "Текущие показатели:\n\nБанк: " + to_string(pot) + " фишек"
-		+ "\nВаш стек: " + to_string(player_stack) + " фишек"
-		+ "\nСтек соперника: " + to_string(opponent_stack) + " фишек"
-		+ "\n\nВаша текущая ставка: " + to_string(player_bet) + " фишек"
-		+ "\nТекущая ставка соперника: " + to_string(opponent_bet) + " фишек";
+	string game_status = "Текущие показатели:\n\nБанк: " + to_string(pot) + word_chip(pot)
+		+ "\nВаш стек: " + to_string(player_stack) + word_chip(player_stack)
+		+ "\nСтек соперника: " + to_string(opponent_stack) + word_chip(opponent_stack)
+		+ "\n\nВаша текущая ставка: " + to_string(player_bet) + word_chip(player_bet)
+		+ "\nТекущая ставка соперника: " + to_string(opponent_bet) + word_chip(opponent_bet);
 	if (player_cards.size()>0)
 	{
 		game_status += "\n\nВаши карманные карты:";
@@ -330,7 +330,7 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if (is_player_should_bet_big_blind == 0) //игрок должен был сделать малый блайнд
 	{
 		make_bet(big_blind, OPPONENT_BET); //соперник сделал большой блайнд
-		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сделал большой блайнд (" + to_string(big_blind) + " фишки)");
+		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сделал большой блайнд (" + to_string(big_blind) + word_chip(big_blind) + ")");
 	}
 	
 	switch (f_game_stage)
@@ -393,13 +393,13 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 	f_game_stage = GAME_NOT_STARTED;
 	if (player_wins == false) //игрок проиграл
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + " фишек.\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + " фишек.\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + " фишек.");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + word_chip(DEFAULT_PLAYER_STACK - player_stack) + ".\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
 		lost_chips += DEFAULT_PLAYER_STACK - player_stack; //увеличить общее число проигранных фишек за всё время
 		losses_qty++; //увеличить общее число проигрышей
 	}
 	else //игрок победил
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + " фишек.\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + " фишек.\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + " фишек.");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(pot - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + word_chip(DEFAULT_OPPONENT_STACK - opponent_stack) + ".");
 		won_chips += pot - (DEFAULT_PLAYER_STACK - player_stack); //увеличить общее число выигранных фишек за всё время
 		wins_qty++; //увеличить общее число выигрышей
 	}
@@ -412,7 +412,7 @@ void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ст
 	///////////////////////////////
 	////////////////
 	call(OPPONENT_BET);//////////////////
-	bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + " фишек"); ///////////
+	bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE)); ///////////
 }
 
 void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message) //действие игрока в круге торговли
@@ -448,7 +448,7 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 		f_success = raise(bet_size, PLAYER_BET);
 		if (f_success == true)
 		{
-			bot->getApi().sendMessage(message->chat->id, "Вы повысили ставку до " + to_string(player_bet) + " фишек");
+			bot->getApi().sendMessage(message->chat->id, "Вы повысили ставку до " + to_string(player_bet) + word_chip(player_bet, GENITIVE));
 		}
 		else
 		{
@@ -462,7 +462,7 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 		f_success = call(PLAYER_BET);
 		if (f_success == true)
 		{
-			bot->getApi().sendMessage(message->chat->id, "Вы уравняли вашу ставку до " + to_string(player_bet) + " фишек");
+			bot->getApi().sendMessage(message->chat->id, "Вы уравняли вашу ставку до " + to_string(player_bet) + word_chip(player_bet, GENITIVE));
 		}
 		else
 		{
@@ -642,12 +642,12 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 	if (is_player_should_bet_big_blind == 1) //игрок должен сделать большой блайнд
 	{
 		make_bet(big_blind / 2, OPPONENT_BET); //соперник сделал малый блайнд
-		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить большой блайнд (" + to_string(big_blind) + " фишки)."
-			+ "\n\nВаш соперник сделал малый блайнд (" + to_string(big_blind / 2) + " фишка).\n\n" + MSG_BEFORE_BLIND);
+		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить большой блайнд (" + to_string(big_blind) + word_chip(big_blind, ACCUSATIVE) + ")."
+			+ "\n\nВаш соперник сделал малый блайнд (" + to_string(big_blind / 2) + word_chip(big_blind / 2) + ").\n\n" + MSG_BEFORE_BLIND);
 	}
 	else //игрок должен сделать малый блайнд
 	{
-		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить малый блайнд (" + to_string(big_blind / 2) + " фишку)."
+		bot->getApi().sendMessage(message->chat->id, "Вам следует поставить малый блайнд (" + to_string(big_blind / 2) + word_chip((big_blind / 2), ACCUSATIVE) + ")."
 			+ "\n\n" + MSG_BEFORE_BLIND);
 	}
 
@@ -1069,5 +1069,44 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 		(*combination_type) = HIGHCARD;
 		(*kicker_value) = card_combination.front().get_value();
 		return card_combination;
+	}
+}
+
+string Game_info::word_chip(int qty_chip) //получить слово "фишки" в именительном падеже с правильным окончанием в зависимости от кол-ва фишек
+{
+	int q = abs(qty_chip); //взять число по модулю
+	if (q % 10 == 1 && q != 11)
+		return " фишка"; // "1 фишка"
+	else if ((q % 10 >= 2 && q % 10 <= 4) && !(q >= 11 && q <= 14)) //"2 фишки"
+		return " фишки";
+	else
+		return " фишек"; //"5 фишек"
+
+}
+
+string Game_info::word_chip(int qty_chip, int word_case) //получить слово "фишки" в родительном или винительном падеже с правильным окончанием в зависимости от кол-ва фишек
+{
+	int q = abs(qty_chip); //взять число по модулю
+	if (q % 10 == 1 && q != 11)
+	{
+		if (word_case == GENITIVE) //родительный падеж
+		{
+			return " фишки"; // "до 1 фишки"
+		}
+		else //винительный падеж
+		{
+			return " фишку"; // "поставить 1 фишку"
+		}
+	}
+	else
+	{
+		if (word_case == GENITIVE) //родительный падеж
+		{
+			return " фишек"; // "до 3 фишек"
+		}
+		else //винительный падеж
+		{
+			return word_chip(q); // "поставить 2 фишки", "поставить 5 фишек"
+		}
 	}
 }

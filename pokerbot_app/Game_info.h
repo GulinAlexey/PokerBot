@@ -49,6 +49,9 @@
 #define STRAIGHT_FLUSH 8 //комбинация карт - стрит-флеш
 #define ROYAL_FLUSH 9 //комбинация карт - роял-флеш
 
+#define GENITIVE 0 //родительный падеж
+#define ACCUSATIVE 1 //винительный падеж
+
 using namespace std;
 
 class Game_info //информация об игре для отдельного пользователя
@@ -101,4 +104,6 @@ public:
 	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
 	void statistics(TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести статистику выигрышей и проигрышей
 	vector <Playing_card> determine_card_combination(int player_or_opponent, int* combination, int* kicker_value); //определить карточную комбинацию и кикер для сравнения комбинаций игроков
+	string word_chip(int qty_chip); //получить слово "фишки" в именительном падеже с правильным окончанием в зависимости от кол-ва фишек
+	string word_chip(int qty_chip, int word_case); //получить слово "фишки" в родительном или винительном падеже с правильным окончанием в зависимости от кол-ва фишек
 };
