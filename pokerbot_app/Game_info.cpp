@@ -406,6 +406,7 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 	}
 
 	write_to_file(); //запись значений в файл
+	send_main_menu(bot, message); //вывести команды главного меню
 }
 
 void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ставка соперника в круге торговли
@@ -1113,4 +1114,9 @@ string Game_info::word_chip(int qty_chip, int word_case) //получить сл
 			return word_chip(q); // "поставить 2 фишки", "поставить 5 фишек"
 		}
 	}
+}
+
+void Game_info::send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message) //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
+{
+	bot->getApi().sendMessage(message->chat->id, "Главное меню\n\n" + string(MAIN_MENU_MSG));
 }

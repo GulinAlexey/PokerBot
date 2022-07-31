@@ -51,7 +51,7 @@ int main()
     Game_info current_game_info; //объект с информацией об игре текущего пользователя
 
     bot.getEvents().onCommand("start", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды start
-        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров).\n\nНачать новую игру: /new_game\nСправка: /help\nСтатистика: /statistics");
+        bot.getApi().sendMessage(message->chat->id, "Добро пожаловать! Это бот для игры в покер (один на один, без джокеров).\n\n" + string(MAIN_MENU_MSG));
         current_game_info.init(message->chat->id, MODE_NEW_PROFILE, &bot, message); //инициализация профиля текущей игры и его создание, запись в файл
         });
     bot.getEvents().onCommand("new_game", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды new_game
