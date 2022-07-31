@@ -11,9 +11,7 @@
 #include "Game_info.cpp"
 #include "Playing_card.cpp"
 
-#define SYSTEM_CREATE_FOLDER "mkdir -p " //системная команда для создания директории
-
-#define SYSTEM_FUNC(command, arg) command arg //объединение define строк для вызова системной команды с аргументами
+#define SYSTEM_CREATE_FOLDER "mkdir -p profiles/" //системная команда для создания директории с профилями пользователей
 
 #define PATH_OF_TOKEN "data/token.dat" //путь к файлу, в котором хранится токен телеграм-бота
 #define PATH_OF_LOG "log.txt" //путь к файлу для записи в лог
@@ -48,7 +46,7 @@ int main()
         return 0;
     }
 
-    system(SYSTEM_FUNC(SYSTEM_CREATE_FOLDER, FOLDER)); //создать директорию для сохранения профилей пользователей
+    system(SYSTEM_CREATE_FOLDER); //создать директорию для сохранения профилей пользователей
     TgBot::Bot bot(bot_token); //объявление объекта телеграм-бота
     Game_info current_game_info; //объект с информацией об игре текущего пользователя
 
@@ -81,7 +79,7 @@ int main()
         current_game_info.action_of_player(FOLD, 0, &bot, message); //выполнение действия сброса карт
         });
     bot.getEvents().onCommand("raise", [&bot](TgBot::Message::Ptr message) { //при получении команды 
-        bot.getApi().sendMessage(message->chat->id, "Команда raise употребляется без символа /");
+        bot.getApi().sendMessage(message->chat->id, "Для повышения ставки просто напишите число, до которого хотите её повысить");
         });
     bot.getEvents().onCommand("help", [&bot](TgBot::Message::Ptr message) { //при получении команды help
         bot.getApi().sendMessage(message->chat->id, HELP_TEXT);
@@ -103,30 +101,22 @@ int main()
         });
     bot.getEvents().onNonCommandMessage([&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении не команды
         istringstream msg_stream(message->text.c_str()); //поток для обработки сообщения пользователя
-        string command = ""; //команда в сообщении пользователя
         int arg = 0; //аргмент в сообщении пользователя
-        msg_stream >> command; //выделить команду из сообщения
         msg_stream >> arg; //выделить аргумент из сообщения
-        if (command == "raise")
+        if (arg > 0)
         {
-            if (arg > 0)
-            {
                 current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
                 current_game_info.action_of_player(RAISE, arg, &bot, message); //выполнение действия повышения ставки
-            }
-            else
-            {
-                bot.getApi().sendMessage(message->chat->id, "Проверьте правильность ввода. После команды должно быть введено положительное число");
-            }
         }
         else
         {
-            bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода. Справка: /help");
+            bot.getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода. Если вы хотели поднять ставку, напишите только число. Справка: /help");
         }
         });
     bot.getEvents().onUnknownCommand([&bot](TgBot::Message::Ptr message) { //при получении неизвестной команды
         bot.getApi().sendMessage(message->chat->id, "Данное сообщение является неизвестной командой. Проверьте правильность ввода. Справка: /help");
         });
+    start_bot: //метка начала работы бота
     try 
     {
         cout << current_time() << "Бот запущен. Имя бота: " << bot.getApi().getMe()->username.c_str() << endl;
@@ -142,6 +132,7 @@ int main()
     {
         cout << current_time() << "Бот остановлен. Ошибка: " << e.what() << endl;
         outlog << current_time() << "Бот остановлен. Ошибка: "<< e.what() << endl;
+        goto start_bot; //попытаться начать работу заново, чтобы не пришлось вручную перезапускать бота
     }
     return 0;
 }

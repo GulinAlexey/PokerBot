@@ -163,7 +163,7 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	opponent_cards.clear();
 	common_cards.clear();
 	
-	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра\n\nБольшой блайнд = " + to_string(big_blind) + " фишки, малый блайнд = " + to_string(big_blind/2) + " фишка.");
+	bot->getApi().sendMessage(message->chat->id, "🔷 Запущена новая игра.\n\nБольшой блайнд = " + to_string(big_blind) + " фишки, малый блайнд = " + to_string(big_blind/2) + " фишка");
 	send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
 	bot->getApi().sendMessage(message->chat->id, "🔹 Первый раунд : Preflop");
 
@@ -191,19 +191,19 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 
 	int rand_value;  //случайное достоинство карты
 	int rand_suit; //случайная масть карты
-	int f_duplicate; //флаг, что найдено совпадение с картами игрока, соперника или общими картами
+	bool f_duplicate; //флаг, что найдено совпадение с картами игрока, соперника или общими картами
 
 	do //генерировать случайные значения, пока не будет найдена карта, не совпадающая с имеющимися
 	{
 		rand_value = value_range(random_generator); //случайное достоинство карты
 		rand_suit = suit_range(random_generator); //случайная масть карты
-		f_duplicate = 0;
+		f_duplicate = false;
 
 		for (int i = 0; i < player_cards.size(); i++)
 		{
 			if (player_cards[i].get_value() == rand_value && player_cards[i].get_suit() == rand_suit)
 			{
-				f_duplicate = 1;
+				f_duplicate = true;
 				break;
 			}
 		}
@@ -211,7 +211,7 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 		{
 			if (opponent_cards[i].get_value() == rand_value && opponent_cards[i].get_suit() == rand_suit)
 			{
-				f_duplicate = 1;
+				f_duplicate = true;
 				break;
 			}
 		}
@@ -219,11 +219,11 @@ Playing_card Game_info::get_rand_card() //получить случайную к
 		{
 			if (common_cards[i].get_value() == rand_value && common_cards[i].get_suit() == rand_suit)
 			{
-				f_duplicate = 1;
+				f_duplicate = true;
 				break;
 			}
 		}
-	} while (f_duplicate == 1);
+	} while (f_duplicate == true);
 
 	Playing_card rand_card(rand_value, rand_suit);
 	return  rand_card;
@@ -234,7 +234,7 @@ void Game_info::send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message) /
 	string game_status = "Текущие показатели:\n\nБанк: " + to_string(pot) + " фишек"
 		+ "\nВаш стек: " + to_string(player_stack) + " фишек"
 		+ "\nСтек соперника: " + to_string(opponent_stack) + " фишек"
-		+ "\nВаша текущая ставка: " + to_string(player_bet) + " фишек"
+		+ "\n\nВаша текущая ставка: " + to_string(player_bet) + " фишек"
 		+ "\nТекущая ставка соперника: " + to_string(opponent_bet) + " фишек";
 	if (player_cards.size()>0)
 	{
@@ -330,7 +330,7 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if (is_player_should_bet_big_blind == 0) //игрок должен был сделать малый блайнд
 	{
 		make_bet(big_blind, OPPONENT_BET); //соперник сделал большой блайнд
-		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сделал большой блайнд (" + to_string(big_blind) + " фишки).");
+		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сделал большой блайнд (" + to_string(big_blind) + " фишки)");
 	}
 	
 	switch (f_game_stage)
@@ -381,8 +381,8 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if ((is_player_should_bet_big_blind == 1 && f_game_stage == PREFLOP) || (is_player_should_bet_big_blind == 0 && f_game_stage != PREFLOP))
 	{
 		auto_action(bot, message);//соперник действует в торгах
+		send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
 	}
-
 	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 
 	write_to_file(); //запись значений в файл
@@ -410,18 +410,35 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ставка соперника в круге торговли
 {
 	///////////////////////////////
+	////////////////
+	call(OPPONENT_BET);//////////////////
+	bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + " фишек"); ///////////
 }
 
 void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message) //действие игрока в круге торговли
 {
 	if (f_game_stage == GAME_NOT_STARTED)
 	{
-		bot->getApi().sendMessage(message->chat->id, "Вы сейчас не находитесь в игре, поэтому команда торговли не имеет смысла");
+		if (type_of_action != RAISE)
+		{
+			bot->getApi().sendMessage(message->chat->id, "Вы сейчас не находитесь в игре, поэтому команда торговли не имеет смысла");
+		}
+		else
+		{
+			bot->getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода. Если вы хотели поднять ставку, то в данный момент это не имеет смысла, так как вы не находитесь в игре");
+		}
 		return;
 	}
 	if (f_stage_action != BETTING_ROUND)
 	{
-		bot->getApi().sendMessage(message->chat->id, "В данный момент игры команда торговли не имеет смысла");
+		if (type_of_action != RAISE)
+		{
+			bot->getApi().sendMessage(message->chat->id, "В данный момент игры команда торговли не имеет смысла");
+		}
+		else
+		{
+			bot->getApi().sendMessage(message->chat->id, "Данное сообщение не является командой. Проверьте правильность ввода. Если вы хотели поднять ставку, то в данный момент игры это не имеет смысла");
+		}
 		return;
 	}
 	bool f_success = false; //флаг успеха действия
@@ -449,7 +466,10 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 		}
 		else
 		{
-			bot->getApi().sendMessage(message->chat->id, "Уравнять ставку не удалось. У вас недостаточно фишек в стеке. Выберите другое действие");
+			if (player_bet < opponent_bet)
+				bot->getApi().sendMessage(message->chat->id, "Уравнять ставку не удалось. У вас недостаточно фишек в стеке. Выберите другое действие");
+			else
+				bot->getApi().sendMessage(message->chat->id, "Уравнять ставку не удалось, так как ставка соперника меньше вашей. Выберите другое действие");
 			send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
 			bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 			return; //прекратить дальшейшее выполнение действий и ждать повторного ввода
@@ -486,6 +506,15 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 	else
 	{
 		auto_action(bot, message); //соперник действует в торгах
+		if (player_bet == opponent_bet) //если ставки уравнялись
+		{
+			to_next_stage(bot, message); //перейти к следующей стадии игры
+		}
+		else
+		{
+			send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
+			bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
+		}
 	}
 }
 
@@ -513,11 +542,21 @@ bool Game_info::call(int player_or_opponent) //уравнять ставку
 {
 	if (player_or_opponent == PLAYER_BET) //действие игрока
 	{
-		return make_bet(opponent_bet, PLAYER_BET);
+		if (player_bet < opponent_bet) //уравнивать свою ставку можно только с более высокой ставкой соперника
+		{
+			return make_bet(opponent_bet, PLAYER_BET);
+		}
+		else 
+			return false;
 	}
 	else //действие соперника
 	{
-		return make_bet(player_bet, OPPONENT_BET);
+		if (opponent_bet < player_bet) //уравнивать ставку соперника можно только с более высокой ставкой пользователя
+		{
+			return make_bet(player_bet, OPPONENT_BET);
+		}
+		else
+			return false;
 	}
 }
 
@@ -591,6 +630,7 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 		break;
 	case SHOWDOWN:
 		bot->getApi().sendMessage(message->chat->id, "🔹 Вскрытие карт");
+		string str_output; //строка для вывода инфо в сообщении
 		//////////////////////////////////
 
 
