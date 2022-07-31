@@ -318,13 +318,13 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	{
 		f_blind_is_successful = make_bet(big_blind / 2, PLAYER_BET); //сделать ставку
 		if (f_blind_is_successful == true)
-			bot->getApi().sendMessage(message->chat->id, "Вы сделали ставку (" + to_string(big_blind / 2) + word_chip(big_blind / 2) + ")");
+			bot->getApi().sendMessage(message->chat->id, "Вы сделали малый блайнд (" + to_string(big_blind / 2) + word_chip(big_blind / 2) + ")");
 	}
 	else //игрок должен сделать большой блайнд
 	{
 		f_blind_is_successful = make_bet(big_blind, PLAYER_BET); //сделать ставку
 		if (f_blind_is_successful == true)
-			bot->getApi().sendMessage(message->chat->id, "Вы сделали ставку (" + to_string(big_blind) + word_chip(big_blind) + ")");
+			bot->getApi().sendMessage(message->chat->id, "Вы сделали большой блайнд (" + to_string(big_blind) + word_chip(big_blind) + ")");
 	}
 	if (f_blind_is_successful == false) //у игрока недостаточно фишек для блайнда
 	{
@@ -762,7 +762,7 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 	string stat = "Ваша статистика за всё время:\n\nПроведено игр: " + to_string(wins_qty + losses_qty)
 		+ "\nПобеды: " + to_string(wins_qty) + " (" + str_percent_wins + "%)"
 		+ "\nПоражения: " + to_string(losses_qty) + " (" + str_percent_losses + "%)"
-		+ "\nНичьи: " + to_string(draws_qty);
+		+ "\nНичьи: " + to_string(draws_qty)
 		+ "\nКол-во выигранных фишек: " + to_string(won_chips) + " шт."
 		+ "\nКол-во проигранных фишек: " + to_string(lost_chips) + " шт."
 		+ "\nИтоговое кол-во фишек: " + to_string(won_chips - lost_chips) + " шт.";
