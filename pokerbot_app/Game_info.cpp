@@ -21,6 +21,7 @@ create_new_profile: //метка создания нового профиля (�
 		lost_chips = 0;
 		wins_qty = 0;
 		losses_qty = 0;
+		draws_qty = 0;
 		f_game_stage = GAME_NOT_STARTED;
 		f_stage_action = BEGIN_OF_STAGE;
 		is_player_should_bet_big_blind = 0;
@@ -58,6 +59,7 @@ bool Game_info::read_from_file() //чтение значений из файла
 	fin >> lost_chips;
 	fin >> wins_qty;
 	fin >> losses_qty;
+	fin >> draws_qty;
 	fin >> f_game_stage;
 	fin >> f_stage_action;
 	fin >> is_player_should_bet_big_blind;
@@ -114,6 +116,7 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	fout << lost_chips << endl;
 	fout << wins_qty << endl;
 	fout << losses_qty << endl;
+	fout << draws_qty << endl;
 	fout << f_game_stage << endl;
 	fout << f_stage_action << endl;
 	fout << is_player_should_bet_big_blind << endl;
@@ -293,7 +296,7 @@ void Game_info::exit(TgBot::Bot* bot, TgBot::Message::Ptr message) //выйти 
 	else
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы вышли из игры");
-		end(false, bot, message); //выход из игры приравнивается к поражению
+		end(OPPONENT_WON, bot, message); //выход из игры приравнивается к поражению
 	}
 }
 
@@ -326,7 +329,7 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if (f_blind_is_successful == false) //у игрока недостаточно фишек для блайнда
 	{
 		bot->getApi().sendMessage(message->chat->id, "У вас недостаточно фишек, чтобы сделать блайнд — обязательную ставку");
-		end(false, bot, message);
+		end(OPPONENT_WON, bot, message);
 	}
 
 	if (is_player_should_bet_big_blind == 0) //игрок должен был сделать малый блайнд
@@ -383,26 +386,38 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if ((is_player_should_bet_big_blind == 1 && f_game_stage == PREFLOP) || (is_player_should_bet_big_blind == 0 && f_game_stage != PREFLOP))
 	{
 		auto_action(bot, message);//соперник действует в торгах
+		if (player_bet == opponent_bet) //если ставки уравнялись
+		{
+			to_next_stage(bot, message); //перейти к следующей стадии игры
+		}
 	}
 
 	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
 	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 }
 
-void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message) //конец игры
+void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message) //конец игры
 {
 	f_game_stage = GAME_NOT_STARTED;
-	if (player_wins == false) //игрок проиграл
+	if (player_wins == OPPONENT_WON) //игрок проиграл
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + word_chip(DEFAULT_PLAYER_STACK - player_stack) + ".\nРезультат противника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + word_chip(DEFAULT_PLAYER_STACK - player_stack) + ".\nРезультат соперника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
 		lost_chips += DEFAULT_PLAYER_STACK - player_stack; //увеличить общее число проигранных фишек за всё время
 		losses_qty++; //увеличить общее число проигрышей
 	}
-	else //игрок победил
+	else if(player_wins == PLAYER_WON)//игрок победил
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(pot - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат противника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + word_chip(DEFAULT_OPPONENT_STACK - opponent_stack) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра завершена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(pot - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат соперника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + word_chip(DEFAULT_OPPONENT_STACK - opponent_stack) + ".");
 		won_chips += pot - (DEFAULT_PLAYER_STACK - player_stack); //увеличить общее число выигранных фишек за всё время
 		wins_qty++; //увеличить общее число выигрышей
+	}
+	else // ничья
+	{
+		int chips_to_opponent = pot / 2; //часть банка, доставшаяся сопернику
+		int chips_to_player = pot - chips_to_opponent; //часть банка, доставшаяся игроку
+		bot->getApi().sendMessage(message->chat->id, "Игра завершена, ничья. Банк делится поровну (" + to_string(chips_to_player) + word_chip(chips_to_player) + " игроку и " + to_string(chips_to_opponent) + word_chip(chips_to_opponent) + " сопернику).\nВаш результат: +" + to_string(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат соперника: +" + to_string(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
+		///////////////////////////////
+		draws_qty++; //увеличить общее число ничьих
 	}
 
 	write_to_file(); //запись значений в файл
@@ -411,10 +426,20 @@ void Game_info::end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messa
 
 void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ставка соперника в круге торговли
 {
-	///////////////////////////////
-	////////////////
-	call(OPPONENT_BET);//////////////////
-	bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE)); ///////////
+	//////////////// Временная простейшая логика бота
+	if(call(OPPONENT_BET))
+		bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
+	else if (raise(opponent_bet + big_blind, OPPONENT_BET))
+	{
+		bot->getApi().sendMessage(message->chat->id, "Ваш соперник повысил ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
+	}
+	else
+	{
+		fold(OPPONENT_BET, bot, message);
+	}
+	///////////////////////////
+
+
 	write_to_file(); //запись значений в файл
 }
 
@@ -594,12 +619,12 @@ void Game_info::fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Pt
 	if (player_or_opponent == PLAYER_BET) //действие игрока
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы сбросили карты");
-		end(false, bot, message); //игрок проиграл
+		end(OPPONENT_WON, bot, message); //игрок проиграл
 	}
 	else //действие соперника
 	{
 		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сбросил карты");
-		end(true, bot, message); //игрок выиграл
+		end(PLAYER_WON, bot, message); //игрок выиграл
 	}
 }
 
@@ -635,12 +660,69 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 		break;
 	case SHOWDOWN:
 		bot->getApi().sendMessage(message->chat->id, "🔷 Вскрытие карт");
-		string str_output; //строка для вывода инфо в сообщении
-		//////////////////////////////////
+		string str_output = "Ваши карманные карты:"; //строка для вывода инфо в сообщении
+		for (int i = 0; i < player_cards.size(); i++) //вывести карманные карты игрока
+		{
+			str_output += "\n" + player_cards[i].get_name();
+		}
+		str_output += "\n\nКарманные карты соперника:";
+		for (int i = 0; i < opponent_cards.size(); i++) //вывести карманные карты соперника
+		{
+			str_output += "\n" + opponent_cards[i].get_name();
+		}
+		str_output += "\n\nОбщие карты:";
+		for (int i = 0; i < common_cards.size(); i++) //вывести общие карты
+		{
+			str_output += "\n" + common_cards[i].get_name();
+		}
+		int player_combination_type; //тип собранной комбинации игрока
+		int player_kicker_value; //значение кикера игрока (для сравнения при совпадении комбинаций)
+		vector <Playing_card> player_combination_cards = determine_card_combination(PLAYER_BET, &player_combination_type, &player_kicker_value); //карты в комбинации игрока (для вывода на экран)
+		
+		int opponent_combination_type; //тип собранной комбинации соперника
+		int opponent_kicker_value; //значение кикера соперника (для сравнения при совпадении комбинаций)
+		vector <Playing_card> opponent_combination_cards = determine_card_combination(OPPONENT_BET, &opponent_combination_type, &opponent_kicker_value); //карты в комбинации соперника (для вывода на экран)
+		
+		str_output += "\n\nВаша комбинация — " + get_combination_name(player_combination_type) + ":";
+		for (int i = 0; i < player_combination_cards.size(); i++) //вывести комбинацию карт игрока
+		{
+			str_output += "\n" + player_combination_cards[i].get_name();
+		}
 
+		str_output += "\n\nКомбинация соперника — " + get_combination_name(opponent_combination_type) + ":";
+		for (int i = 0; i < opponent_combination_cards.size(); i++) //вывести комбинацию карт игрока
+		{
+			str_output += "\n" + opponent_combination_cards[i].get_name();
+		}
 
-		write_to_file(); //запись значений в файл
-		return;
+		bot->getApi().sendMessage(message->chat->id, str_output);
+
+		if (player_combination_type > opponent_combination_type) //комбинация игрока сильнее комбинации соперника
+		{
+			end(PLAYER_WON, bot, message); //игрок победил
+		}
+		else if (player_combination_type < opponent_combination_type) //комбинация соперника сильнее комбинации игрока
+		{
+			end(OPPONENT_WON, bot, message); //соперник победил
+		}
+		else //комбинации игрока и соперника совпали
+		{
+			//определение победителя по кикеру
+			if (player_kicker_value > opponent_kicker_value)
+			{
+				end(PLAYER_WON, bot, message); //игрок победил
+			}
+			else if (player_kicker_value < opponent_kicker_value)
+			{
+				end(OPPONENT_WON, bot, message); //соперник победил
+			}
+			else //карты-кикеры у игрока и соперника тоже совпали
+			{
+				end(DRAW, bot, message); //ничья
+			}
+				
+		}
+		return; //игра завершена
 		break;
 	}
 
@@ -665,11 +747,11 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 	double percent_losses = 0; //средний процент поражений игрока
 	if (wins_qty != 0)
 	{
-		percent_wins = round(double(wins_qty) / (wins_qty + losses_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
+		percent_wins = round(double(wins_qty) / (wins_qty + losses_qty + draws_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
 	}
 	if (losses_qty != 0)
 	{
-		percent_losses = round(double(losses_qty) / (wins_qty + losses_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
+		percent_losses = round(double(losses_qty) / (wins_qty + losses_qty + draws_qty) * 100 * 100) / 100; //округлить до 2 знаков после запятой
 	}
 
 	string str_percent_wins = to_string(percent_wins); //перевод double в string
@@ -680,6 +762,7 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 	string stat = "Ваша статистика за всё время:\n\nПроведено игр: " + to_string(wins_qty + losses_qty)
 		+ "\nПобеды: " + to_string(wins_qty) + " (" + str_percent_wins + "%)"
 		+ "\nПоражения: " + to_string(losses_qty) + " (" + str_percent_losses + "%)"
+		+ "\nНичьи: " + to_string(draws_qty);
 		+ "\nКол-во выигранных фишек: " + to_string(won_chips) + " шт."
 		+ "\nКол-во проигранных фишек: " + to_string(lost_chips) + " шт."
 		+ "\nИтоговое кол-во фишек: " + to_string(won_chips - lost_chips) + " шт.";
@@ -1119,4 +1202,40 @@ string Game_info::word_chip(int qty_chip, int word_case) //получить сл
 void Game_info::send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message) //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
 {
 	bot->getApi().sendMessage(message->chat->id, "Главное меню\n\n" + string(MAIN_MENU_MSG));
+}
+
+string Game_info::get_combination_name(int combination_type) //получить имя комбинации карт для вывода в сообщении
+{
+	switch (combination_type)
+	{
+	case ROYAL_FLUSH:
+		return "Роял-флеш";
+		break;
+	case STRAIGHT_FLUSH:
+		return "Стрит-флеш";
+		break;
+	case FOUR_OF_A_KIND:
+		return "Каре";
+		break;
+	case FULL_HOUSE:
+		return "Фуллхаус";
+		break;
+	case FLUSH:
+		return "Флеш";
+		break;
+	case STRAIGHT:
+		return "Стрит";
+		break;
+	case THREE_OF_A_KIND:
+		return "Сет";
+		break;
+	case TWO_PAIRS:
+		return "Две пары";
+		break;
+	case PAIR:
+		return "Пара";
+		break;
+	default:
+		return "Старшая карта";
+	}
 }

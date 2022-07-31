@@ -53,6 +53,10 @@
 #define GENITIVE 0 //родительный падеж
 #define ACCUSATIVE 1 //винительный падеж
 
+#define OPPONENT_WON 0 //соперник победил и забирает банк
+#define PLAYER_WON 1 //игрок победил и забирает банк
+#define DRAW 2 //ничья, банк делится поровну
+
 using namespace std;
 
 class Game_info //информация об игре для отдельного пользователя
@@ -64,6 +68,7 @@ private:
 	int	lost_chips; //общее кол-во проигранных фишек за все игры
 	int wins_qty; //всего побед
 	int losses_qty; //всего поражений
+	int draws_qty; //всего ничьих
 
 	int f_game_stage; //флаг текущей стадии игры
 	int f_stage_action; //флаг текущего действия в игре (игрок сделал блайнд, получил карты, сделал ставку и т.д.)
@@ -95,7 +100,7 @@ public:
 	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
 	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message); //выйти из игры
 	void make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message); //сделать блайнд
-	void end(bool player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message); //конец игры
+	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message); //конец игры
 	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
 	void action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message); //действие игрока в круге торговли
 	bool raise(int bet_size, int player_or_opponent); //повысить ставку
@@ -108,4 +113,5 @@ public:
 	string word_chip(int qty_chip); //получить слово "фишки" в именительном падеже с правильным окончанием в зависимости от кол-ва фишек
 	string word_chip(int qty_chip, int word_case); //получить слово "фишки" в родительном или винительном падеже с правильным окончанием в зависимости от кол-ва фишек
 	void send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
+	string get_combination_name(int combination_type); //получить имя комбинации карт для вывода в сообщении
 };
