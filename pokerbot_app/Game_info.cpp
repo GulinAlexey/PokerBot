@@ -389,6 +389,7 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 		if (player_bet == opponent_bet) //если ставки уравнялись
 		{
 			to_next_stage(bot, message); //перейти к следующей стадии игры
+			return;
 		}
 	}
 
@@ -401,13 +402,13 @@ void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messag
 	f_game_stage = GAME_NOT_STARTED;
 	if (player_wins == OPPONENT_WON) //игрок проиграл
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + word_chip(DEFAULT_PLAYER_STACK - player_stack) + ".\nРезультат соперника: +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра окончена, вы проиграли.\n\nВаш соперник забирает банк: " + to_string(pot) + word_chip(pot) + ".\n\nС учётом начального стека в " + to_string(DEFAULT_PLAYER_STACK) + word_chip(DEFAULT_PLAYER_STACK, ACCUSATIVE) + ":\nв итоге у вас -" + to_string(DEFAULT_PLAYER_STACK - player_stack) + word_chip(DEFAULT_PLAYER_STACK - player_stack) + ",\nв итоге у соперника +" + to_string(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(pot - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
 		lost_chips += DEFAULT_PLAYER_STACK - player_stack; //увеличить общее число проигранных фишек за всё время
 		losses_qty++; //увеличить общее число проигрышей
 	}
 	else if(player_wins == PLAYER_WON)//игрок победил
 	{
-		bot->getApi().sendMessage(message->chat->id, "Игра завершена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + word_chip(pot) + ".\nВаш результат: +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(pot - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат соперника: -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + word_chip(DEFAULT_OPPONENT_STACK - opponent_stack) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра завершена, вы выиграли.\n\nВы забираете банк: " + to_string(pot) + word_chip(pot) + ".\n\nС учётом начального стека в " + to_string(DEFAULT_PLAYER_STACK) + word_chip(DEFAULT_PLAYER_STACK, ACCUSATIVE) + ":\nв итоге у вас +" + to_string(pot - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(pot - (DEFAULT_PLAYER_STACK - player_stack)) + ",\nв итоге у соперника -" + to_string(DEFAULT_OPPONENT_STACK - opponent_stack) + word_chip(DEFAULT_OPPONENT_STACK - opponent_stack) + ".");
 		won_chips += pot - (DEFAULT_PLAYER_STACK - player_stack); //увеличить общее число выигранных фишек за всё время
 		wins_qty++; //увеличить общее число выигрышей
 	}
@@ -415,7 +416,7 @@ void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messag
 	{
 		int chips_to_opponent = pot / 2; //часть банка, доставшаяся сопернику
 		int chips_to_player = pot - chips_to_opponent; //часть банка, доставшаяся игроку
-		bot->getApi().sendMessage(message->chat->id, "Игра завершена, ничья. Банк делится поровну (" + to_string(chips_to_player) + word_chip(chips_to_player) + " игроку и " + to_string(chips_to_opponent) + word_chip(chips_to_opponent) + " сопернику).\nВаш результат: +" + to_string(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + ".\nРезультат соперника: +" + to_string(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра завершена, ничья. Банк делится поровну (" + to_string(chips_to_player) + word_chip(chips_to_player) + " игроку и " + to_string(chips_to_opponent) + word_chip(chips_to_opponent) + " сопернику).\n\nС учётом начального стека в " + to_string(DEFAULT_PLAYER_STACK) + word_chip(DEFAULT_PLAYER_STACK, ACCUSATIVE) + ":\nв итоге у вас +" + to_string(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + ",\nв итоге у соперника +" + to_string(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
 		///////////////////////////////
 		draws_qty++; //увеличить общее число ничьих
 	}
@@ -1162,7 +1163,7 @@ vector <Playing_card> Game_info::determine_card_combination(int player_or_oppone
 
 string Game_info::word_chip(int qty_chip) //получить слово "фишки" в именительном падеже с правильным окончанием в зависимости от кол-ва фишек
 {
-	int q = abs(qty_chip); //взять число по модулю
+	int q = abs(qty_chip)%100; //взять число по модулю и отбросить сотни
 	if (q % 10 == 1 && q != 11)
 		return " фишка"; // "1 фишка"
 	else if ((q % 10 >= 2 && q % 10 <= 4) && !(q >= 11 && q <= 14)) //"2 фишки"
@@ -1174,7 +1175,7 @@ string Game_info::word_chip(int qty_chip) //получить слово "фиш�
 
 string Game_info::word_chip(int qty_chip, int word_case) //получить слово "фишки" в родительном или винительном падеже с правильным окончанием в зависимости от кол-ва фишек
 {
-	int q = abs(qty_chip); //взять число по модулю
+	int q = abs(qty_chip)%100; //взять число по модулю и отбросить сотни
 	if (q % 10 == 1 && q != 11)
 	{
 		if (word_case == GENITIVE) //родительный падеж
