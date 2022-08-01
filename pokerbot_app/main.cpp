@@ -76,7 +76,7 @@ int main()
         current_game_info.action_of_player(FOLD, 0, &bot, message); //выполнение действия сброса карт
         });
     bot.getEvents().onCommand("raise", [&bot](TgBot::Message::Ptr message) { //при получении команды 
-        bot.getApi().sendMessage(message->chat->id, "Для повышения ставки просто напишите число, до которого хотите её повысить");
+        bot.getApi().sendMessage(message->chat->id, "Для повышения ставки просто напишите число, до которого хотите её повысить. Справка: /help");
         });
     bot.getEvents().onCommand("help", [&bot](TgBot::Message::Ptr message) { //при получении команды help
         bot.getApi().sendMessage(message->chat->id, HELP_TEXT);
