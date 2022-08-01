@@ -416,7 +416,7 @@ void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messag
 	{
 		int chips_to_opponent = pot / 2; //часть банка, доставшаяся сопернику
 		int chips_to_player = pot - chips_to_opponent; //часть банка, доставшаяся игроку
-		bot->getApi().sendMessage(message->chat->id, "Игра завершена, ничья. Банк делится поровну (" + to_string(chips_to_player) + word_chip(chips_to_player) + " игроку и " + to_string(chips_to_opponent) + word_chip(chips_to_opponent) + " сопернику).\n\nС учётом начального стека в " + to_string(DEFAULT_PLAYER_STACK) + word_chip(DEFAULT_PLAYER_STACK, ACCUSATIVE) + ":\nв итоге у вас +" + to_string(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + ",\nв итоге у соперника +" + to_string(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
+		bot->getApi().sendMessage(message->chat->id, "Игра завершена, ничья.\n\nБанк делится поровну (" + to_string(chips_to_player) + word_chip(chips_to_player) + " игроку и " + to_string(chips_to_opponent) + word_chip(chips_to_opponent) + " сопернику).\n\nС учётом начального стека в " + to_string(DEFAULT_PLAYER_STACK) + word_chip(DEFAULT_PLAYER_STACK, ACCUSATIVE) + ":\nв итоге у вас +" + to_string(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + word_chip(chips_to_player - (DEFAULT_PLAYER_STACK - player_stack)) + ",\nв итоге у соперника +" + to_string(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + word_chip(chips_to_opponent - (DEFAULT_OPPONENT_STACK - opponent_stack)) + ".");
 		///////////////////////////////
 		draws_qty++; //увеличить общее число ничьих
 	}
