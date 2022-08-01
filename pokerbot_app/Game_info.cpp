@@ -396,9 +396,11 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 			return;
 		}
 	}
-
-	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
-	bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
+	if (f_game_stage != GAME_NOT_STARTED && f_stage_action == BETTING_ROUND)
+	{
+		send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
+		bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
+	}
 }
 
 void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu) //конец игры
@@ -440,6 +442,10 @@ void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ст
 	else if (raise(opponent_bet + big_blind, OPPONENT_BET))
 	{
 		bot->getApi().sendMessage(message->chat->id, "Ваш соперник повысил ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
+	}
+	else if(check(OPPONENT_BET))
+	{
+		bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
 	}
 	else
 	{
@@ -488,7 +494,7 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 		}
 		else
 		{
-			bot->getApi().sendMessage(message->chat->id, "Повысить ставку не удалось. Проверьте правильность ввода. Рейз должен быть больше текущих ставок, быть кратным большому блайнду, и у вас должно быть достаточно фишек в стеке");
+			bot->getApi().sendMessage(message->chat->id, "Повысить ставку не удалось. Проверьте правильность ввода.\n\nРейз должен быть больше текущих ставок, быть кратным большому блайнду, и у вас должно быть достаточно фишек в стеке. Кроме того, фишек должно хватить на ставку блайндов в следующих раундах");
 			send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
 			bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
 			return; //прекратить дальшейшее выполнение действий и ждать повторного ввода
@@ -546,8 +552,11 @@ void Game_info::action_of_player(int type_of_action, int bet_size, TgBot::Bot* b
 		}
 		else
 		{
-			send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
-			bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
+			if (f_game_stage != GAME_NOT_STARTED)
+			{
+				send_game_status(bot, message); //отправить инфо о банке, фишках игрока и соперника
+				bot->getApi().sendMessage(message->chat->id, TAKE_ACTON_MSG); //сообщение с списком возможных действий игрока в круге торговли
+			}
 		}
 	}
 }
@@ -557,6 +566,35 @@ bool Game_info::raise(int bet_size, int player_or_opponent) //повысить �
 	if (bet_size <= player_bet || bet_size <= opponent_bet) //если ставка меньше, чем текущие ставки игрока и соперника, или равна им
 	{
 		return false;
+	}
+
+	int stack; //текущий стек игрока или соперника
+	int last_bet; //текущая ставка игрока или соперника
+	if (player_or_opponent == PLAYER_BET)
+	{
+		stack = player_stack;
+		last_bet = player_bet;
+	}
+	else
+	{
+		stack = opponent_stack;
+		last_bet = opponent_bet;
+	}
+
+	switch (f_game_stage) //запретить делать ставки, из-за которых на последующих этапах для блайндов не хватит фишек
+	{
+	case PREFLOP:
+		if (bet_size > stack + last_bet - (big_blind * 3))
+			return false;
+		break;
+	case FLOP:
+		if (bet_size > stack + last_bet - (big_blind * 2))
+			return false;
+		break;
+	case TURN:
+		if (bet_size > stack + last_bet - big_blind)
+			return false;
+		break;
 	}
 	if (bet_size % big_blind != 0) //если повышенная ставка не кратна большому блайнду
 	{
