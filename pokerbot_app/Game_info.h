@@ -98,9 +98,9 @@ public:
 	Playing_card get_rand_card(); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
 	void send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить инфо о банке, фишках игрока и соперника
 	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
-	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message); //выйти из игры
+	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //выйти из игры
 	void make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message); //сделать блайнд
-	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message); //конец игры
+	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //конец игры
 	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
 	void action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message); //действие игрока в круге торговли
 	bool raise(int bet_size, int player_or_opponent); //повысить ставку

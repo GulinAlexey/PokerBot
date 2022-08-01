@@ -8,9 +8,6 @@
 #include <tgbot/tgbot.h>
 #include "Game_info.h"
 
-#include "Game_info.cpp"
-#include "Playing_card.cpp"
-
 #define SYSTEM_CREATE_FOLDER "mkdir -p profiles/" //системная команда для создания директории с профилями пользователей
 
 #define PATH_OF_TOKEN "data/token.dat" //путь к файлу, в котором хранится токен телеграм-бота
@@ -64,7 +61,7 @@ int main()
         });
     bot.getEvents().onCommand("exit", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды exit
         current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
-        current_game_info.exit(&bot, message); //выйти из игры
+        current_game_info.exit(&bot, message, true); //выйти из игры
         });
     bot.getEvents().onCommand("call", [&bot, current_game_info](TgBot::Message::Ptr message) mutable { //при получении команды call
         current_game_info.init(message->chat->id, MODE_EXISTING_PROFILE, &bot, message); //инициализация профиля текущей игры из файла
