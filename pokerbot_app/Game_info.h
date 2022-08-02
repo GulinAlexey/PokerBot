@@ -53,9 +53,13 @@
 #define GENITIVE 0 //родительный падеж (для слова фишки)
 #define ACCUSATIVE 1 //винительный падеж (для слова фишки)
 
-#define OPPONENT_WON 0 //соперник победил и забирает банк
-#define PLAYER_WON 1 //игрок победил и забирает банк
+#define LOSE_IN_GAME 0 //поражение в игре
+#define WIN_IN_GAME 1 //победа в игре
 #define DRAW 2 //ничья, банк делится поровну
+#define OPPONENT_WON LOSE_IN_GAME //соперник победил и забирает банк
+#define PLAYER_WON WIN_IN_GAME //игрок победил и забирает банк
+
+#define QTY_MODEL_GAMES_FOR_PROBABILITY 1000 //кол-во игр, результаты которых необходимо смоделировать для получения вероятности победы при текущих картах
 
 using namespace std;
 
@@ -77,6 +81,7 @@ private:
 	int pot; //банк (сумма всех поставленных игроками фишек)
 	int player_bet; //ставка игрока
 	int opponent_bet; //ставка соперника
+	int opponent_chips_in_pot; //кол-во фишек противника в банке за все предыдущие круги торговли
 
 	int player_stack; //кол-во фишек игрока на руках
 	int opponent_stack; //кол-во фишек соперника на руках
@@ -110,8 +115,8 @@ public:
 	void fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Ptr message); //сбросить карты
 
 	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
-	double get_win_probability(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards); //получить вероятность победы с текущими карманными и общими картами
-
+	double get_win_probability(vector<Playing_card> my_pocket_cards, vector<Playing_card> my_common_cards); //получить вероятность победы с текущими карманными и общими картами
+	int model_game_result(vector<Playing_card> my_pocket_cards, vector<Playing_card> my_common_cards); //случайно заполнить неизвестные на данный момент общие карты и карты противника и получить результат (победа, поражение или ничья)
 
 	void send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить инфо о банке, фишках игрока и соперника
 	void send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)

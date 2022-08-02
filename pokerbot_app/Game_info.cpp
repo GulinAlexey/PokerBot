@@ -28,6 +28,7 @@ create_new_profile: //метка создания нового профиля (�
 		pot = 0;
 		player_bet = 0;
 		opponent_bet = 0;
+		opponent_chips_in_pot = 0;
 		player_stack = DEFAULT_PLAYER_STACK;
 		opponent_stack = DEFAULT_OPPONENT_STACK;
 		big_blind = DEFAULT_BIG_BLIND;
@@ -66,6 +67,7 @@ bool Game_info::read_from_file() //чтение значений из файла
 	fin >> pot;
 	fin >> player_bet;
 	fin >> opponent_bet;
+	fin >> opponent_chips_in_pot;
 	fin >> player_stack;
 	fin >> opponent_stack;
 	fin >> big_blind;
@@ -123,6 +125,7 @@ void Game_info::write_to_file() //запись значений в файл (п�
 	fout << pot << endl;
 	fout << player_bet << endl;
 	fout << opponent_bet << endl;
+	fout << opponent_chips_in_pot << endl;
 	fout << player_stack << endl;
 	fout << opponent_stack << endl;
 	fout << big_blind << endl;
@@ -163,6 +166,7 @@ void Game_info::start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message) //�
 	pot = 0;
 	player_bet = 0;
 	opponent_bet = 0;
+	opponent_chips_in_pot = 0;
 	player_stack = DEFAULT_PLAYER_STACK;
 	opponent_stack = DEFAULT_OPPONENT_STACK;
 	big_blind = DEFAULT_BIG_BLIND;
@@ -402,6 +406,7 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 	bot->getApi().sendMessage(message->chat->id, "🔹 Ставки уравнены, торги завершены");
 	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
 
+	opponent_chips_in_pot += opponent_bet; //учёт суммы ставок соперника в предыдущих кругах торговли
 	player_bet = 0; //отсчёт ставок в новом раунде начинается заново
 	opponent_bet = 0;
 
@@ -697,31 +702,131 @@ void Game_info::fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Pt
 
 void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ставка соперника в круге торговли
 {
-	//////////////// Временная простейшая логика бота
-	if (call(OPPONENT_BET))
-		bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
-	else if (raise(opponent_bet + big_blind, OPPONENT_BET))
-	{
-		bot->getApi().sendMessage(message->chat->id, "Ваш соперник повысил ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
-	}
-	else if (check(OPPONENT_BET))
-	{
-		bot->getApi().sendMessage(message->chat->id, "Ваш соперник передал вам ход");
-	}
-	else
-	{
-		fold(OPPONENT_BET, bot, message);
-	}
-	///////////////////////////
+	//получить вероятность победы соперника (с текущими своими карманными и общими картами) методом моделирования
+	double probability_opponent_win = get_win_probability(opponent_cards, common_cards);
 
+	double possible_winned_chips = probability_opponent_win * pot; //кол-во фишек, которые возможно выиграть при текущих картах
+
+	int type_of_auto_action = FOLD; //тип решения, которое в итоге примет соперник
+	bool f_action_success = false; //успех выполнения действия
+
+	int current_opponent_bet_sum = opponent_chips_in_pot; //общее кол-во фишек, которые противник поставил во всех кругах торговли плюс то, что он должен поставить сейчас
+	if (player_bet >= opponent_bet)
+		current_opponent_bet_sum += player_bet;
+	else
+		current_opponent_bet_sum += opponent_bet;
+
+	//принятие решения
+	if (possible_winned_chips < current_opponent_bet_sum)
+		type_of_auto_action = FOLD;
+	if ((possible_winned_chips < (current_opponent_bet_sum + big_blind)) && (possible_winned_chips >= current_opponent_bet_sum))
+		type_of_auto_action = CHECK;
+	if (possible_winned_chips >= current_opponent_bet_sum + big_blind)
+		type_of_auto_action = RAISE;
+
+	//выполнение действия
+	switch (type_of_auto_action)
+	{
+	case RAISE:
+		f_action_success = raise(opponent_bet + big_blind, OPPONENT_BET);
+		if (f_action_success == true)
+		{
+			bot->getApi().sendMessage(message->chat->id, "Ваш соперник повысил ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
+			break;
+		}
+	case CHECK:
+		f_action_success = check(OPPONENT_BET);
+		if (f_action_success == true)
+		{
+			bot->getApi().sendMessage(message->chat->id, "Ваш соперник передал вам ход");
+			break;
+		}
+	case CALL:
+		f_action_success = call(OPPONENT_BET);
+		if (f_action_success == true)
+		{
+			bot->getApi().sendMessage(message->chat->id, "Ваш соперник уравнял ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
+			break;
+		}
+	case FOLD:
+		fold(OPPONENT_BET, bot, message);
+		break;
+	}
 
 	write_to_file(); //запись значений в файл
 }
 
-double Game_info::get_win_probability(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards) //получить вероятность победы с текущими карманными и общими картами
+double Game_info::get_win_probability(vector<Playing_card> my_pocket_cards, vector<Playing_card> my_common_cards) //получить вероятность победы с текущими карманными и общими картами
 {
-	/////////////////
-	return 1;
+	int qty_model_wins = 0; //количество побед при моделировании
+	int qty_model_losses = 0; //количество проигрышей при моделировании
+	int qty_model_draws = 0; //количество ничьих при моделировании
+
+	//промоделировать результат случайной раздачи неизвестных на данный момент карт много раз
+	for (int i = 0; i < QTY_MODEL_GAMES_FOR_PROBABILITY; i++) 
+	{
+		int f_model_result = model_game_result(my_pocket_cards, my_common_cards);
+		if (f_model_result == WIN_IN_GAME)
+			qty_model_wins++;
+		else if (f_model_result == LOSE_IN_GAME)
+			qty_model_losses++;
+		else
+			qty_model_draws++;
+	}
+
+	//получить итоговую вероятность победы
+	return (qty_model_wins + double(qty_model_draws) / 2) / (qty_model_wins + qty_model_losses + qty_model_draws);
+}
+
+int Game_info::model_game_result(vector<Playing_card> my_pocket_cards, vector<Playing_card> my_common_cards) //случайно заполнить неизвестные на данный момент общие карты и карты противника и получить результат (победа или нет)
+{
+	vector <Playing_card> model_common_cards = my_common_cards; //предполагаемые общие карты (случайно дополняются до 5 шт.)
+	vector <Playing_card> model_enemy_cards; //предполагаемые карманные карты противника (для соперника-бота противником является пользователь-игрок)
+											
+	//случайно заполнить карты противника
+	model_enemy_cards.push_back(get_rand_card(my_pocket_cards, model_enemy_cards, model_common_cards));
+	model_enemy_cards.push_back(get_rand_card(my_pocket_cards, model_enemy_cards, model_common_cards));
+	
+	//случайно дополнить общие карты до 5 шт.
+	while (model_common_cards.size() != 5)
+		model_common_cards.push_back(get_rand_card(my_pocket_cards, model_enemy_cards, model_common_cards));
+
+	int my_model_combination_type; //тип комбинации данного игрока
+	int my_model_kicker_value; //кикер данного игрока
+	//определить комбинацию
+	determine_card_combination(my_pocket_cards, model_common_cards, &my_model_combination_type, &my_model_kicker_value);
+
+	int model_enemy_combination_type; //тип комбинации противника данного игрока
+	int model_enemy_kicker_value; //кикер противника данного игрока
+	//определить комбинацию
+	determine_card_combination(model_enemy_cards, model_common_cards, &model_enemy_combination_type, &model_enemy_kicker_value);
+
+	//определить победителя
+	if (my_model_combination_type > model_enemy_combination_type) //комбинация данного игрока сильнее
+	{
+		return WIN_IN_GAME; //данный игрок победил
+	}
+	else if (my_model_combination_type < model_enemy_combination_type) //комбинация данного игрока слабее
+	{
+		return LOSE_IN_GAME; //данный игрок проиграл
+	}
+	else //комбинации данного игрока и его противника совпали
+	{
+		//определение победителя по кикеру
+		if (my_model_kicker_value > model_enemy_kicker_value)
+		{
+			return WIN_IN_GAME; //данный игрок победил
+		}
+		else if (my_model_kicker_value < model_enemy_kicker_value)
+		{
+			return LOSE_IN_GAME; //данный игрок проиграл
+		}
+		else //карты-кикеры у данного игрока и его противника тоже совпали
+		{
+			return DRAW; //ничья
+		}
+
+	}
 }
 
 
@@ -775,7 +880,7 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 	str_percent_wins.erase(str_percent_wins.size() - 4); //стереть 4 лишних нуля в дробной части (нужно из-за исп. типа double)
 	str_percent_losses.erase(str_percent_losses.size() - 4); //стереть 4 лишних нуля в дробной части (нужно из-за исп. типа double)
 
-	string stat = "Ваша статистика за всё время:\n\nПроведено игр: " + to_string(wins_qty + losses_qty)
+	string stat = "Ваша статистика за всё время:\n\nПроведено игр: " + to_string(wins_qty + losses_qty + draws_qty)
 		+ "\nПобеды: " + to_string(wins_qty) + " (" + str_percent_wins + "%)"
 		+ "\nПоражения: " + to_string(losses_qty) + " (" + str_percent_losses + "%)"
 		+ "\nНичьи: " + to_string(draws_qty)
