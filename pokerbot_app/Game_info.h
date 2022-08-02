@@ -50,8 +50,8 @@
 #define STRAIGHT_FLUSH 8 //комбинация карт - стрит-флеш
 #define ROYAL_FLUSH 9 //комбинация карт - роял-флеш
 
-#define GENITIVE 0 //родительный падеж
-#define ACCUSATIVE 1 //винительный падеж
+#define GENITIVE 0 //родительный падеж (для слова фишки)
+#define ACCUSATIVE 1 //винительный падеж (для слова фишки)
 
 #define OPPONENT_WON 0 //соперник победил и забирает банк
 #define PLAYER_WON 1 //игрок победил и забирает банк
@@ -91,27 +91,36 @@ private:
 
 public:
 	Game_info();
+
 	void init(int id_chat_input, int f_mode, TgBot::Bot* bot, TgBot::Message::Ptr message); //инициализация на основе идентификатора чата
 	bool read_from_file(); //чтение значений из файла (должно быть уже установлено значение id_chat)
 	void write_to_file(); //запись значений в файл (перезапись, если файл уже был создан)
+	
 	void start_new_game(TgBot::Bot* bot, TgBot::Message::Ptr message); //начать новую игру
-	Playing_card get_rand_card(); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
-	void send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить инфо о банке, фишках игрока и соперника
-	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
-	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //выйти из игры
 	void make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message); //сделать блайнд
-	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //конец игры
-	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
 	void action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message); //действие игрока в круге торговли
+	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
+	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //выйти из игры
+	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //конец игры
+
+	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
 	bool raise(int bet_size, int player_or_opponent); //повысить ставку
 	bool call(int player_or_opponent); //уравнять ставку
 	bool check(int player_or_opponent); //передать ход
 	void fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Ptr message); //сбросить карты
-	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
+
+	void auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message); //действие соперника в круге торговли
+	double get_win_probability(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards); //получить вероятность победы с текущими карманными и общими картами
+
+
+	void send_game_status(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить инфо о банке, фишках игрока и соперника
+	void send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
 	void statistics(TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести статистику выигрышей и проигрышей
-	vector <Playing_card> determine_card_combination(int player_or_opponent, int* combination, int* kicker_value); //определить карточную комбинацию и кикер для сравнения комбинаций игроков
+	
+	Playing_card get_rand_card(vector<Playing_card> now_player_cards, vector<Playing_card> now_opponent_cards, vector<Playing_card> now_common_cards); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
+	vector <Playing_card> determine_card_combination(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards, int* combination_type, int* kicker_value); //определить карточную комбинацию и кикер для сравнения комбинаций игроков
+	string get_combination_name(int combination_type); //получить имя комбинации карт для вывода в сообщении
+
 	string word_chip(int qty_chip); //получить слово "фишки" в именительном падеже с правильным окончанием в зависимости от кол-ва фишек
 	string word_chip(int qty_chip, int word_case); //получить слово "фишки" в родительном или винительном падеже с правильным окончанием в зависимости от кол-ва фишек
-	void send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
-	string get_combination_name(int combination_type); //получить имя комбинации карт для вывода в сообщении
 };
