@@ -120,7 +120,7 @@ public:
 	void action_of_player(int type_of_action, int bet_size, TgBot::Bot* bot, TgBot::Message::Ptr message); //действие игрока в круге торговли
 	void to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message); //перейти к следующей стадии игры
 	void exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //выйти из игры
-	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu); //конец игры
+	void end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu, bool is_was_fold); //конец игры
 
 	bool make_bet(int bet_size, int player_or_opponent); //сделать ставку
 	bool raise(int bet_size, int player_or_opponent); //повысить ставку

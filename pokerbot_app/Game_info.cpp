@@ -225,7 +225,7 @@ void Game_info::make_blind(TgBot::Bot* bot, TgBot::Message::Ptr message) //сд�
 	if (f_blind_is_successful == false) //у игрока недостаточно фишек для блайнда
 	{
 		bot->getApi().sendMessage(message->chat->id, "У вас недостаточно фишек, чтобы сделать блайнд — обязательную ставку");
-		end(OPPONENT_WON, bot, message, true);
+		end(OPPONENT_WON, bot, message, true, true);
 	}
 
 	if (is_player_should_bet_big_blind == 0) //игрок должен был сделать малый блайнд
@@ -471,26 +471,26 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 
 		if (player_combination_type > opponent_combination_type) //комбинация игрока сильнее комбинации соперника
 		{
-			end(PLAYER_WON, bot, message, true); //игрок победил
+			end(PLAYER_WON, bot, message, true, false); //игрок победил
 		}
 		else if (player_combination_type < opponent_combination_type) //комбинация соперника сильнее комбинации игрока
 		{
-			end(OPPONENT_WON, bot, message, true); //соперник победил
+			end(OPPONENT_WON, bot, message, true, false); //соперник победил
 		}
 		else //комбинации игрока и соперника совпали
 		{
 			//определение победителя по кикеру
 			if (player_kicker_value > opponent_kicker_value)
 			{
-				end(PLAYER_WON, bot, message, true); //игрок победил
+				end(PLAYER_WON, bot, message, true, false); //игрок победил
 			}
 			else if (player_kicker_value < opponent_kicker_value)
 			{
-				end(OPPONENT_WON, bot, message, true); //соперник победил
+				end(OPPONENT_WON, bot, message, true, false); //соперник победил
 			}
 			else //карты-кикеры у игрока и соперника тоже совпали
 			{
-				end(DRAW, bot, message, true); //ничья
+				end(DRAW, bot, message, true, false); //ничья
 			}
 
 		}
@@ -522,12 +522,11 @@ void Game_info::exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_
 	else
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы вышли из текущей игры");
-		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после выхода из игры
-		end(OPPONENT_WON, bot, message, is_send_main_menu); //выход из игры приравнивается к поражению
+		end(OPPONENT_WON, bot, message, is_send_main_menu, true); //выход из игры приравнивается к поражению
 	}
 }
 
-void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu) //конец игры
+void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_main_menu, bool is_was_fold) //конец игры
 {
 	f_game_stage = GAME_NOT_STARTED;
 	if (player_wins == OPPONENT_WON) //игрок проиграл
@@ -552,6 +551,8 @@ void Game_info::end(int player_wins, TgBot::Bot* bot, TgBot::Message::Ptr messag
 	}
 
 	write_to_file(); //запись значений в файл
+	if (is_was_fold == true) //если игра закончилась, но карты соперника не были показаны (ранее произошёл сброс карт)
+		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после выхода из игры
 	if (is_send_main_menu == true)
 	{
 		send_main_menu(bot, message); //вывести команды главного меню
@@ -691,14 +692,12 @@ void Game_info::fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Pt
 	if (player_or_opponent == PLAYER_BET) //действие игрока
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы сбросили карты");
-		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после сброса карт
-		end(OPPONENT_WON, bot, message, true); //игрок проиграл
+		end(OPPONENT_WON, bot, message, true, true); //игрок проиграл
 	}
 	else //действие соперника
 	{
 		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сбросил карты");
-		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после сброса карт
-		end(PLAYER_WON, bot, message, true); //игрок выиграл
+		end(PLAYER_WON, bot, message, true, true); //игрок выиграл
 	}
 }
 
@@ -714,10 +713,10 @@ void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ст
 	//принятие решения
 	if (probability_opponent_win > 0.6) //большая вероятность победы позволяет рискнуть и повысить ставку
 		type_of_auto_action = RAISE;
-	else if (probability_opponent_win >= 0.25 && probability_opponent_win <= 0.6) //вероятность победы средняя, действовать пассивно (чек или колл)
+	else if (probability_opponent_win >= 0.3 && probability_opponent_win <= 0.6) //вероятность победы средняя, действовать пассивно (чек или колл)
 	{
 		type_of_auto_action = CHECK;
-		if (probability_opponent_win <= 0.34 && player_bet >= 40) //если шансы малы, а игрок начинает давить высокими ставками, то сбросить карты
+		if (probability_opponent_win <= 0.4 && player_bet >= 10) //если шансы малы, а игрок начинает давить высокими ставками, то сбросить карты
 			type_of_auto_action = FOLD;
 	}
 	else
@@ -933,7 +932,7 @@ void Game_info::send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Pt
 		for (int i = 0; i < player_cards.size(); i++)
 			str_output += "\n" + player_cards[i].get_name();
 
-		str_output += "\nКарманные карты соперника:";
+		str_output += "\n\nКарманные карты соперника:";
 		for (int i = 0; i < opponent_cards.size(); i++)
 			str_output += "\n" + opponent_cards[i].get_name();
 	}
@@ -967,9 +966,8 @@ void Game_info::send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Pt
 		str_output += "\n\nСоперник мог бы собрать комбинацию " + get_combination_name(opponent_combination_type) + ":";
 		for (int i = 0; i < opponent_combination_cards.size(); i++) //вывести комбинацию карт игрока
 			str_output += "\n" + opponent_combination_cards[i].get_name();
-
-		bot->getApi().sendMessage(message->chat->id, str_output);
 	}
+	bot->getApi().sendMessage(message->chat->id, str_output);
 }
 
 
