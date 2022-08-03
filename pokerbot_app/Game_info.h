@@ -136,6 +136,7 @@ public:
 	void send_main_menu(TgBot::Bot* bot, TgBot::Message::Ptr message); //отправить сообщение с основными командами вне игры (аналогично стартовому сообщению)
 	void statistics(TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести статистику выигрышей и проигрышей
 	void send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести потенциальные карточные комбинации игроков после сброса карт или выхода из игры
+	void send_actual_commands(bool is_was_help_exit, TgBot::Bot* bot, TgBot::Message::Ptr message); //вывести сообщение с текущими доступными командами
 
 	Playing_card get_rand_card(vector<Playing_card> now_player_cards, vector<Playing_card> now_opponent_cards, vector<Playing_card> now_common_cards); //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
 	vector <Playing_card> determine_card_combination(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards, int* combination_type, int* kicker_value); //определить карточную комбинацию и кикер для сравнения комбинаций игроков

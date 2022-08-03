@@ -915,7 +915,8 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 		+ "\nКол-во проигранных фишек: " + to_string(lost_chips) + " шт."
 		+ "\nИтоговое кол-во фишек: " + to_string(won_chips - lost_chips) + " шт.";
 
-	bot->getApi().sendMessage(message->chat->id, stat);
+	bot->getApi().sendMessage(message->chat->id, stat); //вывести статистику
+	send_actual_commands(false, bot, message); //вывести доступные сейчас команды
 }
 
 void Game_info::send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Ptr message) //вывести потенциальные карточные комбинации игроков после сброса карт или выхода из игры
@@ -968,6 +969,51 @@ void Game_info::send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Pt
 			str_output += "\n" + opponent_combination_cards[i].get_name();
 	}
 	bot->getApi().sendMessage(message->chat->id, str_output);
+}
+
+void Game_info::send_actual_commands(bool is_was_help_exit, TgBot::Bot* bot, TgBot::Message::Ptr message) //вывести сообщение с текущими доступными командами
+{
+	if (f_game_stage == GAME_NOT_STARTED)
+	{
+		if(is_was_help_exit == true)
+			bot->getApi().sendMessage(message->chat->id, "Вы сейчас не находитесь в игре, поэтому вернулись в главное меню");
+		send_main_menu(bot, message); //вывести команды главного меню
+		return;
+	}
+	send_game_status(bot, message); //вывести в сообщении текущее состояние стека, банка и карт
+	string str_output = "Продолжается раунд ";
+	switch (f_game_stage)
+	{
+	case PREFLOP:
+		str_output += "1 (Preflop).\n\n";
+		break;
+	case FLOP:
+		str_output += "2 (Flop).\n\n";
+		break;
+	case TURN:
+		str_output += "3 (Turn).\n\n";
+		break;
+	case RIVER:
+		str_output += "4 (River).\n\n";
+		break;
+	}
+
+	if (f_stage_action == BEGIN_OF_STAGE)
+	{
+		str_output += "Вам следует поставить блайнд — ";
+		if (is_player_should_bet_big_blind)
+			str_output += to_string(big_blind) + word_chip(big_blind, ACCUSATIVE);
+		else
+			str_output += to_string(big_blind / 2) + word_chip(big_blind / 2, ACCUSATIVE);
+		str_output += ".\n\n";
+		bot->getApi().sendMessage(message->chat->id, str_output + MSG_BEFORE_BLIND);
+		return;
+	}
+	if (f_stage_action == BETTING_ROUND)
+	{
+		bot->getApi().sendMessage(message->chat->id, str_output + TAKE_ACTON_MSG);
+		return;
+	}
 }
 
 
