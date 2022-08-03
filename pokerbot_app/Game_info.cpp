@@ -453,7 +453,7 @@ void Game_info::to_next_stage(TgBot::Bot* bot, TgBot::Message::Ptr message) //п
 
 		int opponent_combination_type; //тип собранной комбинации соперника
 		int opponent_kicker_value; //значение кикера соперника (для сравнения при совпадении комбинаций)
-		vector <Playing_card> opponent_combination_cards = determine_card_combination(player_cards, common_cards, &opponent_combination_type, &opponent_kicker_value); //карты в комбинации соперника (для вывода на экран)
+		vector <Playing_card> opponent_combination_cards = determine_card_combination(opponent_cards, common_cards, &opponent_combination_type, &opponent_kicker_value); //карты в комбинации соперника (для вывода на экран)
 
 		str_output += "\n\nВаша комбинация — " + get_combination_name(player_combination_type) + ":";
 		for (int i = 0; i < player_combination_cards.size(); i++) //вывести комбинацию карт игрока
@@ -522,6 +522,7 @@ void Game_info::exit(TgBot::Bot* bot, TgBot::Message::Ptr message, bool is_send_
 	else
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы вышли из текущей игры");
+		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после выхода из игры
 		end(OPPONENT_WON, bot, message, is_send_main_menu); //выход из игры приравнивается к поражению
 	}
 }
@@ -690,11 +691,13 @@ void Game_info::fold(int player_or_opponent, TgBot::Bot* bot, TgBot::Message::Pt
 	if (player_or_opponent == PLAYER_BET) //действие игрока
 	{
 		bot->getApi().sendMessage(message->chat->id, "Вы сбросили карты");
+		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после сброса карт
 		end(OPPONENT_WON, bot, message, true); //игрок проиграл
 	}
 	else //действие соперника
 	{
 		bot->getApi().sendMessage(message->chat->id, "Ваш соперник сбросил карты");
+		send_combinations_after_fold(bot, message); //вывести потенциальные карточные комбинации игроков после сброса карт
 		end(PLAYER_WON, bot, message, true); //игрок выиграл
 	}
 }
@@ -705,36 +708,64 @@ void Game_info::auto_action(TgBot::Bot* bot, TgBot::Message::Ptr message) //ст
 	//получить вероятность победы соперника (с текущими своими карманными и общими картами) методом моделирования
 	double probability_opponent_win = get_win_probability(opponent_cards, common_cards);
 
-	double possible_winned_chips = probability_opponent_win * pot; //кол-во фишек, которые возможно выиграть при текущих картах
-
 	int type_of_auto_action = FOLD; //тип решения, которое в итоге примет соперник
 	bool f_action_success = false; //успех выполнения действия
 
-	int current_opponent_bet_sum = opponent_chips_in_pot; //общее кол-во фишек, которые противник поставил во всех кругах торговли плюс то, что он должен поставить сейчас
-	if (player_bet >= opponent_bet)
-		current_opponent_bet_sum += player_bet;
-	else
-		current_opponent_bet_sum += opponent_bet;
-
 	//принятие решения
-	if (possible_winned_chips < current_opponent_bet_sum)
-		type_of_auto_action = FOLD;
-	if ((possible_winned_chips < (current_opponent_bet_sum + big_blind)) && (possible_winned_chips >= current_opponent_bet_sum))
-		type_of_auto_action = CHECK;
-	if (possible_winned_chips >= current_opponent_bet_sum + big_blind)
+	if (probability_opponent_win > 0.6) //большая вероятность победы позволяет рискнуть и повысить ставку
 		type_of_auto_action = RAISE;
+	else if (probability_opponent_win >= 0.25 && probability_opponent_win <= 0.6) //вероятность победы средняя, действовать пассивно (чек или колл)
+	{
+		type_of_auto_action = CHECK;
+		if (probability_opponent_win <= 0.34 && player_bet >= 40) //если шансы малы, а игрок начинает давить высокими ставками, то сбросить карты
+			type_of_auto_action = FOLD;
+	}
+	else
+		type_of_auto_action = FOLD; //вероятность победы низкая, лучше сбросить карты
+
+	uniform_int_distribution<int> reraise_rand_range(0, 1); //диапазон для случайной генерации решения, нужно ли повторно повышать ставку
+	uniform_int_distribution<int> special_rise_rand_range(AUTO_MAKE_RAISE, AUTO_MAKE_DOUBLE_RAISE); //диапазон для случайной генерации решения, каким образом повысить ставку
+
+	int f_make_reraise = reraise_rand_range(random_generator); //случайно решить, нужно ли повторно повышать ставку
+	if (probability_opponent_win >= 0.83)
+		f_make_reraise = 1; //если вероятность выиграть высокая, то в любом случае ещё раз повысить ставку
+	int f_make_special_rise = special_rise_rand_range(random_generator); //случайно решить, как повысить ставку (на 1 или 2 больших блайнда или в два раза)
+	int new_bet; //новое значение ставки (в рейзе)
 
 	//выполнение действия
 	switch (type_of_auto_action)
 	{
 	case RAISE:
-		f_action_success = raise(opponent_bet + big_blind, OPPONENT_BET);
+		if (f_make_reraise == 0 && (player_bet > big_blind || opponent_bet > big_blind))
+			goto make_check; //сделать чек, если ранее ставка уже повышалась, а также было случайно решено сделать чек вместо рейза
+
+		if (opponent_bet > player_bet)
+			new_bet = opponent_bet; //новое значение ставки
+		else
+			new_bet = player_bet;
+
+		switch (f_make_special_rise) //выбрать тип повышения ставки на основе случайного выбора
+		{
+		case AUTO_MAKE_RAISE:
+			new_bet += big_blind;
+			break;
+		case AUTO_MAKE_RAISE_2_BLINDS:
+			new_bet += big_blind * 2;
+			break;
+		case AUTO_MAKE_DOUBLE_RAISE:
+			new_bet += new_bet;
+			break;
+		}
+
+		f_action_success = raise(new_bet, OPPONENT_BET);
+		
 		if (f_action_success == true)
 		{
 			bot->getApi().sendMessage(message->chat->id, "Ваш соперник повысил ставку до " + to_string(opponent_bet) + word_chip(opponent_bet, GENITIVE));
 			break;
 		}
 	case CHECK:
+		make_check: //метка действия - чек
 		f_action_success = check(OPPONENT_BET);
 		if (f_action_success == true)
 		{
@@ -760,22 +791,19 @@ double Game_info::get_win_probability(vector<Playing_card> my_pocket_cards, vect
 {
 	int qty_model_wins = 0; //количество побед при моделировании
 	int qty_model_losses = 0; //количество проигрышей при моделировании
-	int qty_model_draws = 0; //количество ничьих при моделировании
 
 	//промоделировать результат случайной раздачи неизвестных на данный момент карт много раз
 	for (int i = 0; i < QTY_MODEL_GAMES_FOR_PROBABILITY; i++) 
 	{
 		int f_model_result = model_game_result(my_pocket_cards, my_common_cards);
-		if (f_model_result == WIN_IN_GAME)
-			qty_model_wins++;
-		else if (f_model_result == LOSE_IN_GAME)
-			qty_model_losses++;
+		if (f_model_result == LOSE_IN_GAME)
+			qty_model_losses++;  
 		else
-			qty_model_draws++;
+			qty_model_wins++;
 	}
 
 	//получить итоговую вероятность победы
-	return (qty_model_wins + double(qty_model_draws) / 2) / (qty_model_wins + qty_model_losses + qty_model_draws);
+	return double(qty_model_wins) / (qty_model_wins + qty_model_losses);
 }
 
 int Game_info::model_game_result(vector<Playing_card> my_pocket_cards, vector<Playing_card> my_common_cards) //случайно заполнить неизвестные на данный момент общие карты и карты противника и получить результат (победа или нет)
@@ -788,7 +816,7 @@ int Game_info::model_game_result(vector<Playing_card> my_pocket_cards, vector<Pl
 	model_enemy_cards.push_back(get_rand_card(my_pocket_cards, model_enemy_cards, model_common_cards));
 	
 	//случайно дополнить общие карты до 5 шт.
-	while (model_common_cards.size() != 5)
+	while (model_common_cards.size() != QTY_RIVER_COMMON_CARDS)
 		model_common_cards.push_back(get_rand_card(my_pocket_cards, model_enemy_cards, model_common_cards));
 
 	int my_model_combination_type; //тип комбинации данного игрока
@@ -891,6 +919,59 @@ void Game_info::statistics(TgBot::Bot* bot, TgBot::Message::Ptr message) //вы�
 	bot->getApi().sendMessage(message->chat->id, stat);
 }
 
+void Game_info::send_combinations_after_fold(TgBot::Bot* bot, TgBot::Message::Ptr message) //вывести потенциальные карточные комбинации игроков после сброса карт или выхода из игры
+{
+	if (player_cards.size() < QTY_POCKET_CARDS || opponent_cards.size() < QTY_POCKET_CARDS)
+		return; //у игроков нет карт, выводить в сообщении нечего
+
+	string str_output; //строка для вывода сообщения
+
+	if (common_cards.size() < QTY_FLOP_COMMON_CARDS) //общих карт ещё нет, есть только карманные
+	{
+		str_output = "Теперь можете оценить, какие у вас были шансы на победу в прошедшей игре, сравнив карты:";
+		str_output += "\n\nВаши карманные карты:";
+		for (int i = 0; i < player_cards.size(); i++)
+			str_output += "\n" + player_cards[i].get_name();
+
+		str_output += "\nКарманные карты соперника:";
+		for (int i = 0; i < opponent_cards.size(); i++)
+			str_output += "\n" + opponent_cards[i].get_name();
+	}
+	else
+	{
+		str_output = "Теперь можете оценить, какие у вас были шансы на победу в прошедшей игре, сравнив комбинации:";
+		str_output += "\n\nВаши карманные карты:";
+		for (int i = 0; i < player_cards.size(); i++)
+			str_output += "\n" + player_cards[i].get_name();
+
+		str_output += "\n\nКарманные карты соперника:";
+		for (int i = 0; i < opponent_cards.size(); i++)
+			str_output += "\n" + opponent_cards[i].get_name();
+
+		str_output += "\n\nОбщие карты:";
+		for (int i = 0; i < common_cards.size(); i++)
+			str_output += "\n" + common_cards[i].get_name();
+
+		int player_combination_type; //тип собранной комбинации игрока
+		int player_kicker_value; //значение кикера игрока
+		vector <Playing_card> player_combination_cards = determine_card_combination(player_cards, common_cards, &player_combination_type, &player_kicker_value); //карты в комбинации игрока (для вывода на экран)
+
+		int opponent_combination_type; //тип собранной комбинации соперника
+		int opponent_kicker_value; //значение кикера соперника
+		vector <Playing_card> opponent_combination_cards = determine_card_combination(opponent_cards, common_cards, &opponent_combination_type, &opponent_kicker_value); //карты в комбинации соперника (для вывода на экран)
+
+		str_output += "\n\nВы могли бы собрать комбинацию " + get_combination_name(player_combination_type) + ":";
+		for (int i = 0; i < player_combination_cards.size(); i++) //вывести комбинацию карт игрока
+			str_output += "\n" + player_combination_cards[i].get_name();
+
+		str_output += "\n\nСоперник мог бы собрать комбинацию " + get_combination_name(opponent_combination_type) + ":";
+		for (int i = 0; i < opponent_combination_cards.size(); i++) //вывести комбинацию карт игрока
+			str_output += "\n" + opponent_combination_cards[i].get_name();
+
+		bot->getApi().sendMessage(message->chat->id, str_output);
+	}
+}
+
 
 Playing_card Game_info::get_rand_card(vector<Playing_card> now_player_cards, vector<Playing_card> now_opponent_cards, vector<Playing_card> now_common_cards) //получить случайную карту, не совпадающую с карманными картами игрока, соперника и общими картами
 {
@@ -940,7 +1021,7 @@ Playing_card Game_info::get_rand_card(vector<Playing_card> now_player_cards, vec
 vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card> now_pocket_cards, vector<Playing_card> now_common_cards, int* combination_type, int* kicker_value) //определить карточную комбинацию и кикер для сравнения комбинаций игроков
 {
 	vector <Playing_card> card_combination; //карты в комбинации
-	if (now_pocket_cards.size() == 0 || now_pocket_cards.size() == 1) //если карт у игрока ещё нет, то вернуть значение пустой комбинации
+	if (now_pocket_cards.size() < QTY_POCKET_CARDS) //если карт у игрока ещё нет, то вернуть значение пустой комбинации
 	{
 		(*combination_type) = EMPTY_CARDS;
 		(*kicker_value) = EMPTY_CARDS;
@@ -993,11 +1074,11 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value()-1 && pocket_and_common_cards[j].get_suit() == card_combination.back().get_suit())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 5)
+					if (card_combination.size() == COMBINATION_SIZE)
 						break;
 				}
 			}
-			if (card_combination.size() == 4 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит-флеш (5,4,3,2,A)
+			if (card_combination.size() == COMBINATION_SIZE-1 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит-флеш (5,4,3,2,A)
 			{
 				for (int j = 0; j < pocket_and_common_cards.size(); j++)
 				{
@@ -1008,7 +1089,7 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 					}
 				}
 			}
-			if (card_combination.size() == 5) //комбинация из 5 карт найдена
+			if (card_combination.size() == COMBINATION_SIZE) //комбинация из 5 карт найдена
 			{
 				(*kicker_value) = card_combination.front().get_value();
 				if (*kicker_value == ACE) //найден роял-флеш
@@ -1030,12 +1111,12 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 4)
+					if (card_combination.size() == FOUR_OF_A_KIND_SIZE)
 						break;
 				}
 			}
 
-			if (card_combination.size() == 4) //комбинация каре найдена
+			if (card_combination.size() == FOUR_OF_A_KIND_SIZE) //комбинация каре найдена
 			{
 				(*combination_type) = FOUR_OF_A_KIND;
 				Playing_card kicker(0, 0);
@@ -1063,11 +1144,11 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 3)
+					if (card_combination.size() == THREE_OF_A_KIND_SIZE)
 						break;
 				}
 			}
-			if (card_combination.size() == 3) //сет найден
+			if (card_combination.size() == THREE_OF_A_KIND_SIZE) //сет найден
 			{
 				Playing_card pair_card(0,0); //первая карта из пары
 				bool f_success_pair = false; //флаг успеха нахождения второй карты из пары
@@ -1111,13 +1192,13 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_suit() == card_combination.back().get_suit())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 5)
+					if (card_combination.size() == COMBINATION_SIZE)
 					{
 						break;
 					}
 				}
 			}
-			if (card_combination.size() == 5) //комбинация флеш найдена
+			if (card_combination.size() == COMBINATION_SIZE) //комбинация флеш найдена
 			{
 				(*combination_type) = FLUSH;
 				(*kicker_value) = card_combination.front().get_value();
@@ -1136,11 +1217,11 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value() - 1)
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 5)
+					if (card_combination.size() == COMBINATION_SIZE)
 						break;
 				}
 			}
-			if (card_combination.size() == 4 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит (5,4,3,2,A)
+			if (card_combination.size() == COMBINATION_SIZE-1 && card_combination.back().get_value() == TWO) //найти туз для комбинации - младший стрит (5,4,3,2,A)
 			{
 				for (int j = 0; j < pocket_and_common_cards.size(); j++)
 				{
@@ -1151,7 +1232,7 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 					}
 				}
 			}
-			if (card_combination.size() == 5) //комбинация из 5 карт найдена
+			if (card_combination.size() == COMBINATION_SIZE) //комбинация из 5 карт найдена
 			{
 				(*kicker_value) = card_combination.front().get_value();
 				(*combination_type) = STRAIGHT;
@@ -1169,13 +1250,13 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 3)
+					if (card_combination.size() == THREE_OF_A_KIND_SIZE)
 					{
 						break;
 					}
 				}
 			}
-			if (card_combination.size() == 3) //сет найден
+			if (card_combination.size() == THREE_OF_A_KIND_SIZE) //сет найден
 			{
 				(*combination_type) = THREE_OF_A_KIND;
 				Playing_card kicker(0, 0);
@@ -1211,13 +1292,12 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 2)
-						break;
+					break;
 				}
 				else
 					break; //из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
 			}
-			if (card_combination.size() == 2) //первая пара найдена
+			if (card_combination.size() == PAIR_SIZE) //первая пара найдена
 			{
 				Playing_card second_pair_card(0, 0); //первая карта из второй пары
 				bool f_success_pair = false; //флаг успеха нахождения второй карты из второй пары
@@ -1271,15 +1351,12 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 				if (pocket_and_common_cards[j].get_value() == card_combination.back().get_value())
 				{
 					card_combination.push_back(pocket_and_common_cards[j]);
-					if (card_combination.size() == 2)
-					{
-						break;
-					}
+					break;
 				}
 				else
 					break; ////из-за сортировки по убыванию парная карта должна находиться рядом, иначе её вообще нет
 			}
-			if (card_combination.size() == 2) //пара найдена
+			if (card_combination.size() == PAIR_SIZE) //пара найдена
 			{
 				(*combination_type) = PAIR;
 
@@ -1299,7 +1376,7 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 					if (pocket_and_common_cards[j].get_value() != card_combination.front().get_value() && pocket_and_common_cards[j].get_value() != kicker.get_value())
 					{
 						card_combination.push_back(pocket_and_common_cards[j]);
-						if (card_combination.size() == 5)
+						if (card_combination.size() == COMBINATION_SIZE)
 						{
 							break;
 						}
@@ -1311,7 +1388,7 @@ vector <Playing_card> Game_info::determine_card_combination(vector<Playing_card>
 			
 		//поиск старшей карты
 		card_combination.clear();
-		for (int i = 0; i < 5; i++)
+		for (int i = 0; i < COMBINATION_SIZE; i++)
 		{
 			card_combination.push_back(pocket_and_common_cards[i]);
 		}
@@ -1376,23 +1453,15 @@ string Game_info::word_chip(int qty_chip, int word_case) //получить сл
 	if (q % 10 == 1 && q != 11)
 	{
 		if (word_case == GENITIVE) //родительный падеж
-		{
 			return " фишки"; // "до 1 фишки"
-		}
 		else //винительный падеж
-		{
 			return " фишку"; // "поставить 1 фишку"
-		}
 	}
 	else
 	{
 		if (word_case == GENITIVE) //родительный падеж
-		{
 			return " фишек"; // "до 3 фишек"
-		}
 		else //винительный падеж
-		{
 			return word_chip(q); // "поставить 2 фишки", "поставить 5 фишек"
-		}
 	}
 }
